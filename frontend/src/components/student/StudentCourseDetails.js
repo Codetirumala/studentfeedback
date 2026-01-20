@@ -20,6 +20,17 @@ const StudentCourseDetails = () => {
     fetchCourseData();
   }, [id]);
 
+  // Fetch all day ratings when course loads
+  useEffect(() => {
+    if (course && course.sections) {
+      course.sections.forEach(day => {
+        if (day.completed) {
+          fetchDayRating(day.dayNumber);
+        }
+      });
+    }
+  }, [course]);
+
   const fetchCourseData = async () => {
     try {
       const [courseRes, enrollmentsRes, attendanceRes] = await Promise.all([
@@ -77,7 +88,8 @@ const StudentCourseDetails = () => {
 
   const isDayCompleted = (dayNumber) => {
     // Use teacher-marked completion on course sections
-    const section = course.sections && course.sections.find(s => s.dayNumber === dayNumber);
+    if (!course || !course.sections) return false;
+    const section = course.sections.find(s => s.dayNumber === dayNumber);
     return section ? !!section.completed : false;
   };
 
@@ -97,8 +109,11 @@ const StudentCourseDetails = () => {
   const submitDayRating = async (dayNumber, rating, comment) => {
     try {
       const res = await api.post('/ratings/day', { courseId: id, dayNumber, rating, comment });
+      // Update state with the new rating data
       setDayRatings(prev => ({ ...prev, [dayNumber]: res.data }));
-      alert('Thanks for rating this day');
+      setSelectedRatings(prev => ({ ...prev, [dayNumber]: res.data.rating }));
+      setRatingComments(prev => ({ ...prev, [dayNumber]: res.data.comment || '' }));
+      alert('Thanks for rating this day!');
     } catch (error) {
       console.error('Failed to submit rating', error);
       alert(error.response?.data?.message || 'Failed to submit rating');
@@ -248,6 +263,25 @@ const StudentCourseDetails = () => {
             <span>{course.totalDays - daysCompleted} days remaining</span>
           </div>
         </div>
+
+        {/* Certificate Button */}
+        {progress === 100 && (
+          <div className="certificate-prompt">
+            <div className="certificate-prompt-content">
+              <FiAward className="certificate-icon" />
+              <div className="certificate-text">
+                <h4>🎉 Congratulations! Course Completed</h4>
+                <p>You may be eligible for a completion certificate.</p>
+              </div>
+            </div>
+            <button 
+              className="btn-certificate"
+              onClick={() => navigate(`/student/certificate/${id}`)}
+            >
+              <FiAward /> View Certificate
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Course Content */}

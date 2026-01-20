@@ -19,20 +19,33 @@ router.post('/day', auth, isStudent, async (req, res) => {
       return res.status(400).json({ message: 'Day not marked completed by teacher' });
     }
 
-    // Ensure student is enrolled and approved
-    const enrollment = await Enrollment.findOne({
+    // Ensure student is enrolled - check with approved status first, then any enrollment
+    let enrollment = await Enrollment.findOne({
       student: req.user.userId,
       course: courseId,
       status: 'approved'
     });
+    
+    if (!enrollment) {
+      enrollment = await Enrollment.findOne({
+        student: req.user.userId,
+        course: courseId
+      });
+    }
+    
     if (!enrollment) {
       return res.status(403).json({ message: 'Not enrolled in this course' });
     }
 
-    // Prevent multiple ratings per student per day
+    // Prevent multiple ratings per student per day - allow update if exists
     const existing = await DayRating.findOne({ student: req.user.userId, course: courseId, dayNumber });
     if (existing) {
-      return res.status(400).json({ message: 'You have already rated this day' });
+      // Update existing rating
+      existing.rating = rating;
+      existing.comment = comment || '';
+      existing.updatedAt = new Date();
+      await existing.save();
+      return res.json(existing);
     }
 
     const dr = new DayRating({
@@ -46,6 +59,7 @@ router.post('/day', auth, isStudent, async (req, res) => {
 
     res.status(201).json(dr);
   } catch (error) {
+    console.error('Error saving day rating:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

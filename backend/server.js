@@ -22,6 +22,7 @@ app.use('/api/feedback', require('./routes/feedback'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/ratings', require('./routes/ratings'));
 app.use('/api/evaluations', require('./routes/evaluations'));
+app.use('/api/certificates', require('./routes/certificates'));
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI, {

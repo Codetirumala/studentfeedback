@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
-import { FiUsers, FiCheckSquare, FiBarChart2, FiFileText, FiX } from 'react-icons/fi';
+import { FiUsers, FiCheckSquare, FiBarChart2, FiFileText, FiX, FiAward } from 'react-icons/fi';
 import './CourseDetails.css';
 
 const CourseDetails = () => {
@@ -177,6 +177,12 @@ const CourseDetails = () => {
         <div className="section-header">
           <h2>Enrolled Students ({students.length})</h2>
           <div className="header-buttons">
+            <button 
+              className="btn-survey-analytics"
+              onClick={() => navigate(`/teacher/courses/${id}/surveys`)}
+            >
+              <FiAward /> Survey Analytics
+            </button>
             <button 
               className={`btn-toggle ${course.enrollmentEnabled ? 'enabled' : 'disabled'}`}
               onClick={handleToggleEnrollment}

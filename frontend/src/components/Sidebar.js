@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { 
   FiBook, FiCalendar, FiClock, FiSettings, FiLogOut, 
-  FiBarChart2, FiUsers, FiCheckSquare, FiFileText 
+  FiBarChart2, FiUsers, FiCheckSquare, FiFileText, FiAward 
 } from 'react-icons/fi';
 import './Sidebar.css';
 
@@ -23,6 +23,7 @@ const Sidebar = ({ isTeacher = false }) => {
     { path: '/student/courses', label: 'My Courses', icon: FiBook },
     { path: '/student/attendance', label: 'Attendance', icon: FiCalendar },
     { path: '/student/timetable', label: 'Timetable', icon: FiClock },
+    { path: '/student/certificates', label: 'Certificates', icon: FiAward },
   ];
 
   const teacherLinks = [

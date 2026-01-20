@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
-import { FiBook, FiCalendar, FiUser, FiArrowRight } from 'react-icons/fi';
+import { FiBook, FiCalendar, FiUser, FiArrowRight, FiAward, FiEdit3 } from 'react-icons/fi';
 import './StudentCourses.css';
 
 const StudentCourses = () => {
   const [courses, setCourses] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
+  const [courseEligibility, setCourseEligibility] = useState({});
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -36,6 +37,25 @@ const StudentCourses = () => {
       
       setCourses(coursesWithProgress);
       setEnrollments(enrollmentsRes.data);
+
+      // Fetch eligibility for completed courses
+      const eligibilityPromises = coursesWithProgress
+        .filter(c => c.progress === 100)
+        .map(async (course) => {
+          try {
+            const res = await api.get(`/certificates/eligibility/${course._id}`);
+            return { courseId: course._id, data: res.data };
+          } catch (err) {
+            return { courseId: course._id, data: null };
+          }
+        });
+      
+      const eligibilityResults = await Promise.all(eligibilityPromises);
+      const eligibilityMap = {};
+      eligibilityResults.forEach(r => {
+        if (r.data) eligibilityMap[r.courseId] = r.data;
+      });
+      setCourseEligibility(eligibilityMap);
     } catch (error) {
       console.error('Error fetching courses:', error);
     } finally {
@@ -148,6 +168,26 @@ const StudentCourses = () => {
                   <span className="progress-days">
                     {course.daysCompleted} of {course.totalDays} days completed
                   </span>
+
+                  {/* Show action buttons for completed courses */}
+                  {course.progress === 100 && courseEligibility[course._id] && (
+                    <div className="course-actions" onClick={(e) => e.stopPropagation()}>
+                      {courseEligibility[course._id].pendingReviews?.some(r => r.type === 'course_evaluation') && (
+                        <button 
+                          className="action-btn evaluation-btn"
+                          onClick={() => navigate(`/student/evaluation/${course._id}`)}
+                        >
+                          <FiEdit3 /> Submit Evaluation
+                        </button>
+                      )}
+                      <button 
+                        className="action-btn certificate-btn"
+                        onClick={() => navigate(`/student/certificate/${course._id}`)}
+                      >
+                        <FiAward /> {courseEligibility[course._id].canDownloadCertificate ? 'Get Certificate' : 'View Status'}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <button className="view-btn">

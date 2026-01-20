@@ -13,12 +13,22 @@ router.post('/', auth, isStudent, async (req, res) => {
     const course = await Course.findById(courseId);
     if (!course) return res.status(404).json({ message: 'Course not found' });
 
-    if (course.status !== 'completed') {
+    // Check if all course sections/days are completed
+    const courseSections = course.sections || [];
+    const totalDays = courseSections.length;
+    const completedDays = courseSections.filter(s => s.completed).length;
+    const isCourseCompleted = totalDays > 0 && completedDays === totalDays;
+
+    // Also check if course status is 'completed' (for backwards compatibility)
+    if (!isCourseCompleted && course.status !== 'completed') {
       return res.status(400).json({ message: 'Course is not completed yet' });
     }
 
-    // Ensure student enrolled
-    const enrollment = await Enrollment.findOne({ student: req.user.userId, course: courseId, status: 'approved' });
+    // Ensure student enrolled (check both approved and any enrollment)
+    let enrollment = await Enrollment.findOne({ student: req.user.userId, course: courseId, status: 'approved' });
+    if (!enrollment) {
+      enrollment = await Enrollment.findOne({ student: req.user.userId, course: courseId });
+    }
     if (!enrollment) return res.status(403).json({ message: 'Not enrolled in this course' });
 
     // Prevent duplicate submission

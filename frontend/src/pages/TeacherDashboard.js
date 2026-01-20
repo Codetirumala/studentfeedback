@@ -11,6 +11,7 @@ import AttendanceManagement from '../components/teacher/AttendanceManagement';
 import ProgramAnalytics from '../components/teacher/ProgramAnalytics';
 import Timetable from '../components/teacher/Timetable';
 import Reports from '../components/teacher/Reports';
+import SurveyAnalytics from '../components/teacher/SurveyAnalytics';
 import Profile from './Profile';
 import './Dashboard.css';
 
@@ -26,6 +27,7 @@ const TeacherDashboard = () => {
           <Route path="courses/create" element={<CreateCourse />} />
           <Route path="courses/:id/edit" element={<EditCourse />} />
           <Route path="courses/:id" element={<CourseDetails />} />
+          <Route path="courses/:courseId/surveys" element={<SurveyAnalytics />} />
           <Route path="enrollments" element={<Enrollments />} />
           <Route path="attendance" element={<AttendanceManagement />} />
           <Route path="analytics" element={<ProgramAnalytics />} />

@@ -1,0 +1,7 @@
+PORT=5000
+MONGODB_URI=mongodb+srv://shareenpan2:Fgouter55@cluster0.s3dpu.mongodb.net/feebackgnani?retryWrites=true&w=majority&appName=Cluster0
+JWT_SECRET=your_jwt_secret_key_change_in_production
+CLOUDINARY_CLOUD_NAME=dhyusdxpj
+CLOUDINARY_API_KEY=698634345187571
+CLOUDINARY_API_SECRET=0A1DXS5d92wdyhz3MInCEpgcthM
+

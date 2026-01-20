@@ -1,0 +1,445 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import api from '../../utils/api';
+import { FiArrowLeft, FiCheckCircle, FiClock, FiCalendar, FiBook, FiUser, FiChevronDown, FiChevronUp, FiAward, FiTarget } from 'react-icons/fi';
+import './StudentCourseDetails.css';
+
+const StudentCourseDetails = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [course, setCourse] = useState(null);
+  const [enrollment, setEnrollment] = useState(null);
+  const [attendance, setAttendance] = useState([]);
+  const [dayRatings, setDayRatings] = useState({});
+  const [selectedRatings, setSelectedRatings] = useState({});
+  const [ratingComments, setRatingComments] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [expandedDays, setExpandedDays] = useState({});
+
+  useEffect(() => {
+    fetchCourseData();
+  }, [id]);
+
+  const fetchCourseData = async () => {
+    try {
+      const [courseRes, enrollmentsRes, attendanceRes] = await Promise.all([
+        api.get(`/courses/${id}`),
+        api.get('/enrollments/my-enrollments'),
+        api.get(`/attendance/my-attendance?courseId=${id}`)
+      ]);
+
+      setCourse(courseRes.data);
+      
+      // Find enrollment for this course
+      const courseEnrollment = enrollmentsRes.data.find(
+        e => e.course && e.course._id === id
+      );
+      setEnrollment(courseEnrollment);
+
+      // Get attendance records for this course
+      const attendanceData = Array.isArray(attendanceRes.data) ? attendanceRes.data : [];
+      const courseAttendance = attendanceData.find(
+        a => a.course && a.course._id === id
+      );
+      setAttendance(courseAttendance?.records || []);
+
+      // Expand first incomplete day by default
+      if (courseRes.data.sections && courseRes.data.sections.length > 0) {
+        const firstIncompleteIndex = courseRes.data.sections.findIndex(
+          (day) => !isDayCompleted(day.dayNumber)
+        );
+        if (firstIncompleteIndex !== -1) {
+          setExpandedDays({ [firstIncompleteIndex]: true });
+        } else {
+          setExpandedDays({ [0]: true });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching course data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleDay = (dayIndex) => {
+    setExpandedDays(prev => {
+      const next = { ...prev, [dayIndex]: !prev[dayIndex] };
+      // If expanded now, attempt to fetch rating for that day
+      if (next[dayIndex]) {
+        const day = course.sections && course.sections[dayIndex];
+        if (day && day.completed) {
+          fetchDayRating(day.dayNumber);
+        }
+      }
+      return next;
+    });
+  };
+
+  const isDayCompleted = (dayNumber) => {
+    // Use teacher-marked completion on course sections
+    const section = course.sections && course.sections.find(s => s.dayNumber === dayNumber);
+    return section ? !!section.completed : false;
+  };
+
+  const fetchDayRating = async (dayNumber) => {
+    try {
+      const res = await api.get(`/ratings/my?courseId=${id}&dayNumber=${dayNumber}`);
+      setDayRatings(prev => ({ ...prev, [dayNumber]: res.data }));
+      if (res.data && res.data.rating) {
+        setSelectedRatings(prev => ({ ...prev, [dayNumber]: res.data.rating }));
+        setRatingComments(prev => ({ ...prev, [dayNumber]: res.data.comment || '' }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch day rating', error);
+    }
+  };
+
+  const submitDayRating = async (dayNumber, rating, comment) => {
+    try {
+      const res = await api.post('/ratings/day', { courseId: id, dayNumber, rating, comment });
+      setDayRatings(prev => ({ ...prev, [dayNumber]: res.data }));
+      alert('Thanks for rating this day');
+    } catch (error) {
+      console.error('Failed to submit rating', error);
+      alert(error.response?.data?.message || 'Failed to submit rating');
+    }
+  };
+
+  const ratingLabels = {
+    1: 'Bad',
+    2: 'Poor',
+    3: 'Average',
+    4: 'Good',
+    5: 'Excellent'
+  };
+
+  const getDayDate = (day) => {
+    if (day.date) {
+      return new Date(day.date).toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    }
+    if (course.startDate) {
+      const date = new Date(course.startDate);
+      date.setDate(date.getDate() + (day.dayNumber - 1));
+      return date.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    }
+    return null;
+  };
+
+  const getProgressColor = (progress) => {
+    if (progress >= 80) return '#10b981';
+    if (progress >= 50) return '#3b82f6';
+    if (progress >= 25) return '#f59e0b';
+    return '#6b7280';
+  };
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading course details...</p>
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="error-state">
+        <p>Course not found</p>
+        <button onClick={() => navigate('/student/courses')} className="btn-primary">
+          Back to Courses
+        </button>
+      </div>
+    );
+  }
+
+  const progress = enrollment?.progress || 0;
+  const daysCompleted = enrollment?.daysCompleted || 0;
+  const progressColor = getProgressColor(progress);
+
+  return (
+    <div className="course-details-container">
+      {/* Header */}
+      <div className="course-header-section">
+        <button className="back-btn" onClick={() => navigate('/student/courses')}>
+          <FiArrowLeft />
+          <span>Back to Courses</span>
+        </button>
+
+        <div className="course-header-content">
+          <div className="course-title-area">
+            <h1>{course.title}</h1>
+            <div className="course-badges">
+              <span className="course-code">{course.courseCode}</span>
+              <span className={`status-badge ${course.status}`}>
+                {course.status}
+              </span>
+            </div>
+          </div>
+
+          {course.teacher && (
+            <div className="teacher-card">
+              {course.teacher.profilePicture ? (
+                <img 
+                  src={course.teacher.profilePicture} 
+                  alt={course.teacher.name}
+                  className="teacher-avatar"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div 
+                className="teacher-avatar-fallback"
+                style={{ display: course.teacher.profilePicture ? 'none' : 'flex' }}
+              >
+                <FiUser />
+              </div>
+              <span className="teacher-name">{course.teacher.name}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Course Description */}
+      {course.description && (
+        <div className="course-description-card">
+          <h2>Course Description</h2>
+          <p>{course.description}</p>
+        </div>
+      )}
+
+      {/* Progress Card */}
+      <div className="progress-card">
+        <div className="progress-header">
+          <h2>Your Progress</h2>
+          <span className="progress-percentage" style={{ color: progressColor }}>
+            {progress}%
+          </span>
+        </div>
+        
+        <div className="progress-bar-container">
+          <div 
+            className="progress-bar-fill"
+            style={{ 
+              width: `${progress}%`,
+              backgroundColor: progressColor 
+            }}
+          />
+        </div>
+
+        <div className="progress-stats">
+          <div className="progress-stat">
+            <FiCheckCircle style={{ color: progressColor }} />
+            <span>{daysCompleted} of {course.totalDays} days completed</span>
+          </div>
+          <div className="progress-stat">
+            <FiClock style={{ color: '#6b7280' }} />
+            <span>{course.totalDays - daysCompleted} days remaining</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Course Content */}
+      <div className="course-content-card">
+        <div className="content-header">
+          <h2>Course Content</h2>
+          <p>Click on a day to view sections and sub-sections</p>
+        </div>
+
+        {course.sections && course.sections.length > 0 ? (
+          <div className="days-timeline">
+              {course.sections.map((day, dayIndex) => {
+              const isCompleted = isDayCompleted(day.dayNumber);
+              const isExpanded = expandedDays[dayIndex];
+              const dayDate = getDayDate(day);
+              const isToday = dayIndex === daysCompleted && !isCompleted;
+
+              return (
+                <div 
+                  key={dayIndex} 
+                  className={`day-item ${isCompleted ? 'completed' : ''} ${isToday ? 'current' : ''} ${isExpanded ? 'expanded' : ''}`}
+                >
+                  <div 
+                    className="day-header"
+                    onClick={() => toggleDay(dayIndex)}
+                  >
+                    <div className="day-left">
+                      <div className={`day-indicator ${isCompleted ? 'completed' : ''} ${isToday ? 'current' : ''}`}>
+                        {isCompleted ? (
+                          <FiCheckCircle />
+                        ) : (
+                          <span>{day.dayNumber}</span>
+                        )}
+                      </div>
+                      
+                      <div className="day-info">
+                        <h3>Day {day.dayNumber}</h3>
+                        {dayDate && (
+                          <span className="day-date">
+                            <FiCalendar /> {dayDate}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="day-right">
+                      {isCompleted && (
+                        <span className="completed-tag">Completed</span>
+                      )}
+                      {isToday && (
+                        <span className="current-tag">Current</span>
+                      )}
+                      <button className="expand-btn">
+                        {isExpanded ? <FiChevronUp /> : <FiChevronDown />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="day-content">
+                      {day.sections && day.sections.length > 0 ? (
+                        <div className="sections-container">
+                          {day.sections.map((section, sectionIndex) => (
+                            <div key={sectionIndex} className="section-card">
+                              {section.heading && (
+                                <div className="section-header">
+                                  <FiBook />
+                                  <h4>{section.heading}</h4>
+                                </div>
+                              )}
+                              {section.description && (
+                                <p className="section-description">{section.description}</p>
+                              )}
+                              
+                              {section.subSections && section.subSections.length > 0 && (
+                                <div className="subsections-list">
+                                  {section.subSections.map((subSection, subIndex) => (
+                                    <div key={subIndex} className="subsection-item">
+                                      <div className="subsection-header">
+                                        <FiTarget />
+                                        <span className="subsection-title">{subSection.title}</span>
+                                        {subSection.duration && (
+                                          <span className="subsection-duration">
+                                            <FiClock /> {subSection.duration}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {subSection.description && (
+                                        <p className="subsection-description">
+                                          {subSection.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {/* Rating UI: show if day marked completed by teacher */}
+                          <div className="day-rating">
+                            {isCompleted ? (
+                              dayRatings[day.dayNumber] ? (
+                                <div className="rated-info">
+                                  <div style={{display:'flex',alignItems:'center',gap:12}}>
+                                    <div className="stars-wrapper">
+                                      {[1,2,3,4,5].map(n => (
+                                        <span key={n} className={`star-display ${n <= dayRatings[day.dayNumber].rating ? 'selected' : ''} star-${n}`}>
+                                          <svg viewBox="0 0 24 24" width="28" height="28" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden>
+                                            <path d="M12 .587l3.668 7.431L23.327 9.9l-5.659 5.507L18.998 24 12 20.201 5.002 24l1.33-8.593L.673 9.9l7.659-1.882L12 .587z" />
+                                          </svg>
+                                        </span>
+                                      ))}
+                                    </div>
+                                    <div>
+                                      <div style={{fontWeight:700}}>{dayRatings[day.dayNumber].rating} / 5</div>
+                                      {dayRatings[day.dayNumber].comment ? (
+                                        <div style={{color:'#374151',marginTop:4}}>{dayRatings[day.dayNumber].comment}</div>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="rate-actions">
+                                  <p>Rate this day (1-5):</p>
+                                  <div className="star-rating" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div>
+                                      <div className="stars-wrapper">
+                                        {[1,2,3,4,5].map(n => {
+                                          const selected = (selectedRatings[day.dayNumber] || 0) >= n;
+                                          return (
+                                            <button
+                                              key={n}
+                                              type="button"
+                                              className={`star-btn ${selected ? 'selected' : ''} star-${n}`}
+                                              onClick={() => setSelectedRatings(prev => ({ ...prev, [day.dayNumber]: n }))}
+                                              aria-label={`Rate ${n} stars`}
+                                            >
+                                              <svg viewBox="0 0 24 24" width="28" height="28" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden>
+                                                <path d="M12 .587l3.668 7.431L23.327 9.9l-5.659 5.507L18.998 24 12 20.201 5.002 24l1.33-8.593L.673 9.9l7.659-1.882L12 .587z" />
+                                              </svg>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                      <div className="rating-label" style={{marginLeft:12,fontWeight:600,color:'#111'}}>
+                                        {selectedRatings[day.dayNumber] ? ratingLabels[selectedRatings[day.dayNumber]] : ''}
+                                      </div>
+                                    </div>
+                                    <div className="rating-submit">
+                                      <input
+                                        type="text"
+                                        placeholder="Optional comment"
+                                        value={ratingComments[day.dayNumber] || ''}
+                                        onChange={(e) => setRatingComments(prev => ({ ...prev, [day.dayNumber]: e.target.value }))}
+                                        className="rating-comment"
+                                      />
+                                      <button
+                                        className="btn-primary rating-submit-btn"
+                                        onClick={() => submitDayRating(day.dayNumber, selectedRatings[day.dayNumber], ratingComments[day.dayNumber])}
+                                        disabled={!selectedRatings[day.dayNumber]}
+                                      >
+                                        Submit
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            ) : (
+                              <div className="not-yet">This day has not been marked completed by the teacher yet.</div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="empty-sections">
+                          <p>No content available for this day</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="empty-content">
+            <FiBook />
+            <p>No course content available yet</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default StudentCourseDetails;

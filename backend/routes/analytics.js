@@ -231,5 +231,197 @@ router.get('/attendance-summary', auth, isTeacher, async (req, res) => {
   }
 });
 
+// SECRET ROUTE: Get comprehensive feedback data for all courses
+router.get('/comprehensive-feedback', async (req, res) => {
+  try {
+    const Evaluation = require('../models/Evaluation');
+    const CourseSurvey = require('../models/CourseSurvey');
+    const DayRating = require('../models/DayRating');
+    const User = require('../models/User');
+
+    // Get all courses with teacher info
+    const courses = await Course.find()
+      .populate('teacher', 'name email')
+      .sort({ createdAt: -1 });
+
+    // Get all evaluations
+    const evaluations = await Evaluation.find()
+      .populate('student', 'name email')
+      .populate('course', 'title courseCode')
+      .sort({ createdAt: -1 });
+
+    // Get all course surveys
+    const surveys = await CourseSurvey.find()
+      .populate('student', 'name email')
+      .populate('course', 'title courseCode')
+      .sort({ createdAt: -1 });
+
+    // Get all day ratings
+    const dayRatings = await DayRating.find()
+      .populate('student', 'name email')
+      .populate('course', 'title courseCode')
+      .sort({ createdAt: -1 });
+
+    // Get enrollments for statistics
+    const enrollments = await Enrollment.find()
+      .populate('student', 'name email')
+      .populate('course', 'title');
+
+    // Organize data by course
+    const courseData = courses.map(course => {
+      const courseEvaluations = evaluations.filter(e => 
+        e.course && e.course._id.toString() === course._id.toString()
+      );
+      
+      const courseSurveys = surveys.filter(s => 
+        s.course && s.course._id.toString() === course._id.toString()
+      );
+      
+      const courseDayRatings = dayRatings.filter(d => 
+        d.course && d.course._id.toString() === course._id.toString()
+      );
+
+      const courseEnrollments = enrollments.filter(e => 
+        e.course && e.course._id.toString() === course._id.toString()
+      );
+
+      // Calculate evaluation statistics
+      const evaluationStats = courseEvaluations.length > 0 ? {
+        totalResponses: courseEvaluations.length,
+        averageScores: calculateAverageEvaluationScores(courseEvaluations)
+      } : null;
+
+      // Calculate survey statistics
+      const surveyStats = courseSurveys.length > 0 ? {
+        totalResponses: courseSurveys.length,
+        averageRatings: calculateAverageSurveyRatings(courseSurveys)
+      } : null;
+
+      // Calculate day rating statistics
+      const dayRatingStats = courseDayRatings.length > 0 ? {
+        totalRatings: courseDayRatings.length,
+        averageRating: (courseDayRatings.reduce((sum, d) => sum + d.rating, 0) / courseDayRatings.length).toFixed(2)
+      } : null;
+
+      return {
+        _id: course._id,
+        title: course.title,
+        courseCode: course.courseCode,
+        teacher: course.teacher,
+        status: course.status,
+        totalDays: course.sections?.length || 0,
+        enrolledStudents: courseEnrollments.filter(e => e.status === 'approved').length,
+        evaluations: courseEvaluations,
+        surveys: courseSurveys,
+        dayRatings: courseDayRatings,
+        evaluationStats,
+        surveyStats,
+        dayRatingStats,
+        createdAt: course.createdAt
+      };
+    });
+
+    // Overall statistics
+    const stats = {
+      totalCourses: courses.length,
+      totalEvaluations: evaluations.length,
+      totalSurveys: surveys.length,
+      totalDayRatings: dayRatings.length,
+      totalEnrollments: enrollments.filter(e => e.status === 'approved').length
+    };
+
+    res.json({
+      stats,
+      courses: courseData,
+      allEvaluations: evaluations,
+      allSurveys: surveys,
+      allDayRatings: dayRatings
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Helper function to calculate average evaluation scores
+function calculateAverageEvaluationScores(evaluations) {
+  const questions = [
+    'q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7', 'q8', 'q9', 'q10',
+    'q11', 'q12', 'q13', 'q14', 'q15', 'q16', 'q17', 'q18', 'q19', 'q20'
+  ];
+
+  const questionLabels = {
+    q1: 'Course Clarity',
+    q2: 'Content Quality',
+    q3: 'Appropriateness',
+    q4: 'Relevance',
+    q5: 'Excellence',
+    q6: 'Understanding',
+    q7: 'Knowledge Level',
+    q8: 'Effectiveness',
+    q9: 'Outcomes',
+    q10: 'Engagement',
+    q11: 'Helpfulness',
+    q12: 'Motivation',
+    q13: 'Content Amount',
+    q14: 'Confidence',
+    q15: 'Usefulness',
+    q16: 'Attendance',
+    q17: 'Session Completion',
+    q18: 'Convenience',
+    q19: 'Satisfaction',
+    q20: 'Recommendation'
+  };
+
+  const scores = {};
+  questions.forEach(q => {
+    const values = evaluations
+      .map(e => {
+        const answer = e.answers[q];
+        // Convert text answers to numeric values
+        const scoreMap = {
+          'Clear': 5, 'Good': 4, 'Appropriate': 3, 'Relevant': 4, 'Excellent': 5,
+          'Very Easy to Understand': 5, 'Highly Knowledgeable': 5, 'Effective': 4,
+          'Very Well': 5, 'Engaging': 4, 'Helpful': 4, 'Motivated': 4,
+          'Good Amount': 4, 'Confident': 4, 'Very Useful': 5, 'Attended All Sessions': 5,
+          'No Sessions Missed': 5, 'Very Convenient': 5, 'Very Satisfied': 5,
+          'Probably No': 1, 'Maybe': 3, 'Definitely Yes': 5
+        };
+        return scoreMap[answer] || 3;
+      })
+      .filter(v => v !== undefined);
+    
+    scores[q] = values.length > 0 
+      ? { 
+          label: questionLabels[q],
+          average: (values.reduce((sum, v) => sum + v, 0) / values.length).toFixed(2),
+          responses: values.length
+        }
+      : null;
+  });
+
+  return scores;
+}
+
+// Helper function to calculate average survey ratings
+function calculateAverageSurveyRatings(surveys) {
+  const ratingFields = [
+    'overallSatisfaction',
+    'contentQuality',
+    'teachingEffectiveness',
+    'courseMaterialQuality',
+    'practicalApplication'
+  ];
+
+  const ratings = {};
+  ratingFields.forEach(field => {
+    const values = surveys.map(s => s[field]).filter(v => v !== undefined && v !== null);
+    ratings[field] = values.length > 0
+      ? (values.reduce((sum, v) => sum + v, 0) / values.length).toFixed(2)
+      : 0;
+  });
+
+  return ratings;
+}
+
 module.exports = router;
 

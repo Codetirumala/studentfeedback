@@ -423,5 +423,85 @@ function calculateAverageSurveyRatings(surveys) {
   return ratings;
 }
 
+// Seed test evaluation data
+router.post('/seed-test-evaluations', async (req, res) => {
+  try {
+    const Evaluation = require('../models/Evaluation');
+    const User = require('../models/User');
+    const Course = require('../models/Course');
+    
+    // Get all courses and students
+    const courses = await Course.find();
+    const students = await User.find({ role: 'student' });
+    
+    if (courses.length === 0 || students.length === 0) {
+      return res.status(400).json({ message: 'No courses or students found' });
+    }
+    
+    const answerOptions = {
+      q1: ['Clear', 'Somewhat Clear', 'Unclear'],
+      q2: ['Good', 'Average', 'Poor'],
+      q3: ['Appropriate', 'Somewhat Appropriate', 'Not Appropriate'],
+      q4: ['Relevant', 'Somewhat Relevant', 'Not Relevant'],
+      q5: ['Excellent', 'Good', 'Average'],
+      q6: ['Very Easy to Understand', 'Easy', 'Difficult'],
+      q7: ['Highly Knowledgeable', 'Knowledgeable', 'Average'],
+      q8: ['Effective', 'Somewhat Effective', 'Not Effective'],
+      q9: ['Very Well', 'Well', 'Average'],
+      q10: ['Engaging', 'Somewhat Engaging', 'Boring'],
+      q11: ['Helpful', 'Somewhat Helpful', 'Not Helpful'],
+      q12: ['Motivated', 'Somewhat Motivated', 'Not Motivated'],
+      q13: ['Good Amount', 'Too Much', 'Too Little'],
+      q14: ['Confident', 'Somewhat Confident', 'Not Confident'],
+      q15: ['Very Useful', 'Useful', 'Not Useful'],
+      q16: ['Attended All Sessions', 'Missed Few', 'Missed Many'],
+      q17: ['No Sessions Missed', 'Missed Few', 'Missed Many'],
+      q18: ['Very Convenient', 'Convenient', 'Inconvenient'],
+      q19: ['Very Satisfied', 'Satisfied', 'Not Satisfied'],
+      q20: ['Definitely Yes', 'Maybe', 'Probably No']
+    };
+    
+    const testNames = ['Alice Johnson', 'Bob Smith', 'Charlie Brown', 'Diana Ross', 'Edward King', 'Fiona Apple', 'George Miller', 'Hannah Montana'];
+    
+    let createdCount = 0;
+    
+    for (const course of courses) {
+      // Create 3-5 random evaluations per course
+      const numEvaluations = Math.floor(Math.random() * 3) + 3;
+      
+      for (let i = 0; i < numEvaluations; i++) {
+        const randomStudent = students[Math.floor(Math.random() * students.length)];
+        
+        const answers = {};
+        for (let q = 1; q <= 20; q++) {
+          const key = `q${q}`;
+          const options = answerOptions[key];
+          answers[key] = options[Math.floor(Math.random() * options.length)];
+        }
+        
+        // Check if evaluation already exists
+        const existingEval = await Evaluation.findOne({
+          student: randomStudent._id,
+          course: course._id
+        });
+        
+        if (!existingEval) {
+          await Evaluation.create({
+            student: randomStudent._id,
+            course: course._id,
+            answers,
+            createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000)
+          });
+          createdCount++;
+        }
+      }
+    }
+    
+    res.json({ message: `Created ${createdCount} test evaluations` });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 module.exports = router;
 

@@ -9,6 +9,7 @@ import TeacherDashboard from './pages/TeacherDashboard';
 import Profile from './pages/Profile';
 import StudentEvaluation from './pages/StudentEvaluation';
 import SecretAnalytics from './pages/SecretAnalytics';
+import CourseAnalytics from './pages/CourseAnalytics';
 import './App.css';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/secret-analytics" element={<SecretAnalytics />} />
+          <Route path="/secret-analytics/course/:courseId" element={<CourseAnalytics />} />
           <Route
             path="/student/*"
             element={

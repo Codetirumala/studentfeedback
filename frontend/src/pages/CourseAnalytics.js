@@ -133,17 +133,6 @@ const CourseAnalytics = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  if (loading) {
-    return (
-      <div className="course-container">
-        <div className="loading-wrapper">
-          <div className="loading-spinner"></div>
-          <p className="loading-text">Loading course data...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (!course) {
     return (
       <div className="course-container">

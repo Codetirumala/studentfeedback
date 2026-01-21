@@ -38,11 +38,46 @@ const CourseAnalytics = () => {
   const downloadCSV = () => {
     let csvContent = '';
     
+    // DAY RATINGS - Student as rows, Days as columns
     csvContent += 'DAY RATINGS\n';
-    csvContent += 'Student,Day,Rating,Comment,Date\n';
-    course.dayRatings?.forEach(r => {
-      csvContent += `"${r.student?.name || 'Unknown'}",${r.dayNumber},${r.rating},"${r.comment || ''}","${new Date(r.createdAt).toLocaleString()}"\n`;
-    });
+    
+    if (course.dayRatings && course.dayRatings.length > 0) {
+      // Get all unique students and days
+      const studentMap = new Map();
+      const allDays = new Set();
+      
+      course.dayRatings.forEach(r => {
+        const studentName = r.student?.name || 'Unknown';
+        const day = r.dayNumber;
+        allDays.add(day);
+        
+        if (!studentMap.has(studentName)) {
+          studentMap.set(studentName, {});
+        }
+        studentMap.get(studentName)[day] = r.rating;
+      });
+      
+      // Sort days numerically
+      const sortedDays = Array.from(allDays).sort((a, b) => a - b);
+      
+      // Create header row
+      csvContent += 'Student';
+      sortedDays.forEach(day => {
+        csvContent += `,DAY${day}`;
+      });
+      csvContent += '\n';
+      
+      // Create data rows
+      studentMap.forEach((dayRatings, studentName) => {
+        csvContent += `"${studentName}"`;
+        sortedDays.forEach(day => {
+          csvContent += `,${dayRatings[day] || ''}`;
+        });
+        csvContent += '\n';
+      });
+    } else {
+      csvContent += 'No day ratings available\n';
+    }
     
     csvContent += '\n\nEVALUATIONS\n';
     csvContent += 'Student,Date,Q1,Q2,Q3,Q4,Q5,Q6,Q7,Q8,Q9,Q10,Q11,Q12,Q13,Q14,Q15,Q16,Q17,Q18,Q19,Q20\n';

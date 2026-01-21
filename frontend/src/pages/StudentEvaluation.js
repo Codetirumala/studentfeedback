@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
-import './Auth.css';
+import { FiArrowLeft, FiCheckCircle, FiSend } from 'react-icons/fi';
+import './StudentEvaluation.css';
 
 const StudentEvaluation = () => {
   const { id } = useParams(); // course id
@@ -9,6 +10,7 @@ const StudentEvaluation = () => {
   const [course, setCourse] = useState(null);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -76,47 +78,119 @@ const StudentEvaluation = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      // Ensure all questions answered
-      for (let i = 0; i < questions.length; i++) {
-        const key = questions[i].key;
-        if (!answers[key]) {
-          alert('Please answer all questions');
-          return;
-        }
+    
+    // Ensure all questions answered
+    for (let i = 0; i < questions.length; i++) {
+      const key = questions[i].key;
+      if (!answers[key]) {
+        alert('Please answer all questions before submitting');
+        return;
       }
+    }
 
+    setSubmitting(true);
+    try {
       await api.post('/evaluations', { courseId: id, answers });
-      alert('Evaluation submitted. Thank you!');
-      navigate(`/student/course/${id}`);
+      alert('✅ Evaluation submitted successfully! Thank you for your feedback.');
+      navigate(`/student/courses/${id}`);
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.message || 'Failed to submit evaluation');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  if (loading) return <div>Loading...</div>;
-  if (!course) return <div>Course not found</div>;
+  const answeredCount = Object.keys(answers).length;
+  const progressPercent = Math.round((answeredCount / questions.length) * 100);
+
+  if (loading) {
+    return (
+      <div className="evaluation-page">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading evaluation form...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="evaluation-page">
+        <div className="error-message">Course not found</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="auth-container">
-      <h2>Course Evaluation: {course.title}</h2>
-      <form className="auth-form" onSubmit={handleSubmit}>
-        {questions.map(q => (
-          <div key={q.key} className="form-row">
-            <label>{q.text}</label>
-            <select value={answers[q.key] || ''} onChange={(e) => handleChange(q.key, e.target.value)}>
-              <option value="">Select</option>
-              {options[q.key].map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
+    <div className="evaluation-page">
+      <button className="back-btn" onClick={() => navigate(-1)}>
+        <FiArrowLeft /> Back
+      </button>
+
+      <div className="evaluation-header">
+        <h1>📝 Course Evaluation</h1>
+        <div className="course-info-banner">
+          <h2>{course.title}</h2>
+          <p>{course.courseCode} • {course.teacher?.name}</p>
+        </div>
+      </div>
+
+      {/* Progress Indicator */}
+      <div className="progress-indicator">
+        <div className="progress-bar">
+          <div className="progress-fill" style={{ width: `${progressPercent}%` }}></div>
+        </div>
+        <p className="progress-text">
+          {answeredCount} of {questions.length} questions answered ({progressPercent}%)
+        </p>
+      </div>
+
+      <form className="evaluation-form" onSubmit={handleSubmit}>
+        {questions.map((q, index) => (
+          <div 
+            key={q.key} 
+            className={`question-card ${answers[q.key] ? 'answered' : ''}`}
+          >
+            <div className="question-number">
+              {answers[q.key] ? <FiCheckCircle /> : index + 1}
+            </div>
+            <div className="question-content">
+              <label>{q.text}</label>
+              <div className="select-wrapper">
+                <select 
+                  value={answers[q.key] || ''} 
+                  onChange={(e) => handleChange(q.key, e.target.value)}
+                  required
+                >
+                  <option value="">— Select your answer —</option>
+                  {options[q.key].map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
         ))}
 
         <div className="form-actions">
-          <button type="submit" className="btn-primary">Submit Evaluation</button>
-          <button type="button" className="btn-secondary" onClick={() => navigate(-1)}>Cancel</button>
+          <button 
+            type="button" 
+            className="btn-cancel" 
+            onClick={() => navigate(-1)}
+            disabled={submitting}
+          >
+            Cancel
+          </button>
+          <button 
+            type="submit" 
+            className="btn-submit"
+            disabled={submitting || answeredCount < questions.length}
+          >
+            <FiSend />
+            {submitting ? 'Submitting...' : 'Submit Evaluation'}
+          </button>
         </div>
       </form>
     </div>

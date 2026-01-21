@@ -178,6 +178,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 20px;
 }
 
@@ -190,6 +192,24 @@
 .progress-percentage {
   font-size: 36px;
   font-weight: 700;
+}
+
+.overall-feedback-btn {
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+}
+
+.overall-feedback-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(102, 126, 234, 0.4);
 }
 
 .progress-bar-container {

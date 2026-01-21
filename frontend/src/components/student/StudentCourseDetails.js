@@ -241,6 +241,12 @@ const StudentCourseDetails = () => {
           <span className="progress-percentage" style={{ color: progressColor }}>
             {progress}%
           </span>
+          <button
+            className="overall-feedback-btn"
+            onClick={() => navigate(`/student/evaluation/${id}`)}
+          >
+            Give Overall Feedback
+          </button>
         </div>
         
         <div className="progress-bar-container">

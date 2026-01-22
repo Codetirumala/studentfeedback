@@ -108,8 +108,19 @@ const courseSchema = new mongoose.Schema({
 // Auto-generate course code
 courseSchema.pre('save', async function(next) {
   if (!this.courseCode) {
-    const count = await mongoose.model('Course').countDocuments();
-    this.courseCode = `CRS${String(count + 1).padStart(4, '0')}`;
+    // Find the highest existing course code
+    const lastCourse = await mongoose.model('Course')
+      .findOne({ courseCode: { $regex: /^CRS\d+$/ } })
+      .sort({ courseCode: -1 })
+      .select('courseCode');
+    
+    let nextNumber = 1;
+    if (lastCourse && lastCourse.courseCode) {
+      const currentNumber = parseInt(lastCourse.courseCode.replace('CRS', ''), 10);
+      nextNumber = currentNumber + 1;
+    }
+    
+    this.courseCode = `CRS${String(nextNumber).padStart(4, '0')}`;
   }
   next();
 });

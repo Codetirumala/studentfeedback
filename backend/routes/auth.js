@@ -55,6 +55,21 @@ router.post('/register', [
     const user = new User(userData);
     await user.save();
 
+    // For teachers, don't auto-login - require approval first
+    if (role === 'teacher') {
+      return res.status(201).json({
+        pendingApproval: true,
+        message: 'Registration successful! Your teacher account is pending admin approval.',
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        }
+      });
+    }
+
+    // For students, auto-login
     const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET, {
       expiresIn: '30d'
     });
@@ -66,8 +81,7 @@ router.post('/register', [
         name: user.name,
         email: user.email,
         role: user.role,
-        profilePicture: user.profilePicture,
-        verifiedTeacher: user.verifiedTeacher
+        profilePicture: user.profilePicture
       }
     });
   } catch (error) {
@@ -99,6 +113,19 @@ router.post('/login', [
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Check if teacher is verified
+    if (user.role === 'teacher' && !user.verifiedTeacher) {
+      return res.status(403).json({ 
+        message: 'Your teacher account is pending approval. Please wait for admin verification.',
+        pendingApproval: true,
+        userInfo: {
+          name: user.name,
+          email: user.email,
+          role: user.role
+        }
+      });
     }
 
     const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET, {

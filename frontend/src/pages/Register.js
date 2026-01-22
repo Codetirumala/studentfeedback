@@ -18,6 +18,7 @@ const Register = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState(null);
   const { register } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -31,11 +32,17 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const user = await register(formData);
-      if (user.role === 'student') {
+      const result = await register(formData);
+      
+      // Check if teacher registration is pending approval
+      if (result.pendingApproval) {
+        setPendingApproval(result);
+        return;
+      }
+      
+      // Student - redirect to dashboard
+      if (result.role === 'student') {
         navigate('/student/dashboard');
-      } else {
-        navigate('/teacher/dashboard');
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
@@ -43,6 +50,44 @@ const Register = () => {
       setLoading(false);
     }
   };
+
+  // Show pending approval screen for teachers
+  if (pendingApproval) {
+    return (
+      <div className="auth-container">
+        <div className="auth-card pending-card">
+          <div className="pending-icon">✅</div>
+          <h1>Registration Successful!</h1>
+          <div className="pending-info">
+            <p className="pending-name">Welcome, {pendingApproval.user?.name}!</p>
+            <p className="pending-message">
+              Your teacher account has been created and is now pending admin approval.
+            </p>
+          </div>
+          <div className="pending-details">
+            <div className="detail-item">
+              <span className="detail-label">Email:</span>
+              <span className="detail-value">{pendingApproval.user?.email}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Role:</span>
+              <span className="detail-value">Teacher</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Status:</span>
+              <span className="detail-value status-pending">⏳ Pending Verification</span>
+            </div>
+          </div>
+          <p className="pending-note">
+            An administrator will review and approve your account. You will be able to login once approved.
+          </p>
+          <Link to="/login" className="btn-primary" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
+            Go to Login
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-container">

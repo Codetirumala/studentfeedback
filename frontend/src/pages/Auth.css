@@ -101,3 +101,98 @@
   text-decoration: underline;
 }
 
+/* Pending Approval Card */
+.pending-card {
+  text-align: center;
+  max-width: 500px;
+}
+
+.pending-icon {
+  font-size: 64px;
+  margin-bottom: 10px;
+}
+
+.pending-card h1 {
+  color: #f59e0b;
+  margin-bottom: 20px;
+}
+
+.pending-info {
+  margin-bottom: 25px;
+}
+
+.pending-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.pending-message {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.pending-details {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.detail-item:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  color: #666;
+  font-size: 14px;
+}
+
+.detail-value {
+  color: #333;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.status-pending {
+  color: #f59e0b;
+  background: #fef3c7;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.pending-note {
+  color: #888;
+  font-size: 13px;
+  font-style: italic;
+  margin-bottom: 25px;
+}
+
+.btn-secondary {
+  width: 100%;
+  padding: 12px;
+  background: #f0f0f0;
+  color: #333;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s;
+  font-family: 'Poppins', sans-serif;
+}
+
+.btn-secondary:hover {
+  background: #e0e0e0;
+}
+

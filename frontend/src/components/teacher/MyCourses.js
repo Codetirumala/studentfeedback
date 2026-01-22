@@ -82,15 +82,6 @@ const MyCourses = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading your courses...</p>
-      </div>
-    );
-  }
-
   const filteredCourses = getFilteredCourses();
   const stats = {
     total: courses.length,

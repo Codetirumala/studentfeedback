@@ -171,9 +171,7 @@ const AttendanceManagement = () => {
             </p>
           </div>
 
-          {loading && !students.length ? (
-            <div className="loading">Loading...</div>
-          ) : (
+          {students.length > 0 && (
             <div className="students-attendance">
               <table>
                 <thead>

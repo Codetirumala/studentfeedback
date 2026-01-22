@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import api from '../../utils/api';
 import { FiArrowLeft, FiCheckCircle, FiClock, FiCalendar, FiBook, FiUser, FiChevronDown, FiChevronUp, FiAward, FiTarget } from 'react-icons/fi';
 import './StudentCourseDetails.css';
@@ -7,6 +7,7 @@ import './StudentCourseDetails.css';
 const StudentCourseDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [course, setCourse] = useState(null);
   const [enrollment, setEnrollment] = useState(null);
   const [attendance, setAttendance] = useState([]);
@@ -15,9 +16,11 @@ const StudentCourseDetails = () => {
   const [ratingComments, setRatingComments] = useState({});
   const [loading, setLoading] = useState(true);
   const [expandedDays, setExpandedDays] = useState({});
+  const [evaluationSubmitted, setEvaluationSubmitted] = useState(false);
 
   useEffect(() => {
     fetchCourseData();
+    fetchEvaluationStatus();
   }, [id]);
 
   // Fetch all day ratings when course loads
@@ -30,6 +33,35 @@ const StudentCourseDetails = () => {
       });
     }
   }, [course]);
+
+  const fetchEvaluationStatus = async () => {
+    try {
+      const response = await api.get(`/evaluations/my-evaluation?courseId=${id}`);
+      setEvaluationSubmitted(!!response.data);
+    } catch (error) {
+      // If 404, evaluation not submitted yet
+      setEvaluationSubmitted(false);
+    }
+  };
+
+  // Refetch evaluation status when window regains focus (after navigation back)
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchEvaluationStatus();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [id]);
+
+  // Refetch evaluation status when location changes (navigation back)
+  useEffect(() => {
+    if (location.state?.refreshEvaluation) {
+      fetchEvaluationStatus();
+      // Clear the state to avoid repeated fetches
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   const fetchCourseData = async () => {
     try {
@@ -157,16 +189,7 @@ const StudentCourseDetails = () => {
     return '#6b7280';
   };
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading course details...</p>
-      </div>
-    );
-  }
-
-  if (!course) {
+  if (loading || !course) {
     return (
       <div className="error-state">
         <p>Course not found</p>
@@ -180,6 +203,13 @@ const StudentCourseDetails = () => {
   const progress = enrollment?.progress || 0;
   const daysCompleted = enrollment?.daysCompleted || 0;
   const progressColor = getProgressColor(progress);
+
+  // Check if all days are completed
+  const totalDays = course.totalDays || 0;
+  const allDaysCompleted = daysCompleted === totalDays && totalDays > 0;
+  
+  // Enable feedback button only if all days completed AND progress > 50%
+  const canGiveFeedback = allDaysCompleted && progress > 50;
 
   return (
     <div className="course-details-container">
@@ -241,12 +271,16 @@ const StudentCourseDetails = () => {
           <span className="progress-percentage" style={{ color: progressColor }}>
             {progress}%
           </span>
-          <button
-            className="overall-feedback-btn"
-            onClick={() => navigate(`/student/evaluation/${id}`)}
-          >
-            Give Overall Feedback
-          </button>
+          {!evaluationSubmitted && (
+            <button
+              className="overall-feedback-btn"
+              onClick={() => navigate(`/student/evaluation/${id}`)}
+              disabled={!canGiveFeedback}
+              title={!canGiveFeedback ? 'Complete all days and achieve >50% progress to give feedback' : 'Give overall feedback for this course'}
+            >
+              Give Overall Feedback
+            </button>
+          )}
         </div>
         
         <div className="progress-bar-container">
@@ -270,14 +304,39 @@ const StudentCourseDetails = () => {
           </div>
         </div>
 
-        {/* Certificate Button */}
+        {/* Evaluation Submission Status */}
         {progress === 100 && (
+          <div className={`evaluation-status ${evaluationSubmitted ? 'submitted' : 'pending'}`}>
+            <div className="evaluation-status-content">
+              {evaluationSubmitted ? (
+                <>
+                  <FiCheckCircle className="status-icon success" />
+                  <div className="status-text">
+                    <h4>✓ Overall Feedback Submitted</h4>
+                    <p>Thank you for completing the course evaluation!</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <FiClock className="status-icon pending" />
+                  <div className="status-text">
+                    <h4>⚠ Overall Feedback Required</h4>
+                    <p>Please submit your overall feedback to unlock the certificate</p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Certificate Button */}
+        {progress === 100 && evaluationSubmitted && (
           <div className="certificate-prompt">
             <div className="certificate-prompt-content">
               <FiAward className="certificate-icon" />
               <div className="certificate-text">
                 <h4>🎉 Congratulations! Course Completed</h4>
-                <p>You may be eligible for a completion certificate.</p>
+                <p>Your certificate is ready to view and download.</p>
               </div>
             </div>
             <button 

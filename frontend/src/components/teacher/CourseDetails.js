@@ -61,11 +61,7 @@ const CourseDetails = () => {
     }
   };
 
-  if (loading) {
-    return <div className="loading">Loading...</div>;
-  }
-
-  if (!course) {
+  if (loading || !course) {
     return <div>Course not found</div>;
   }
 

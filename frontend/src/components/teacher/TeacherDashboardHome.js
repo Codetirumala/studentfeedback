@@ -26,15 +26,6 @@ const TeacherDashboardHome = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading dashboard...</p>
-      </div>
-    );
-  }
-
   const summaryCards = [
     {
       title: 'Total Courses',

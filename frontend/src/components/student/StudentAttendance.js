@@ -37,15 +37,6 @@ const StudentAttendance = () => {
     return totalDays > 0 ? Math.round((totalPresent / totalDays) * 100) : 0;
   };
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading your attendance records...</p>
-      </div>
-    );
-  }
-
   const overallAttendance = calculateOverallAttendance();
   const overallStatus = getAttendanceStatus(overallAttendance);
 

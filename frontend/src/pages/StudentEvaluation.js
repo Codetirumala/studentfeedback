@@ -92,7 +92,7 @@ const StudentEvaluation = () => {
     try {
       await api.post('/evaluations', { courseId: id, answers });
       alert('✅ Evaluation submitted successfully! Thank you for your feedback.');
-      navigate(`/student/courses/${id}`);
+      navigate(`/student/courses/${id}`, { state: { refreshEvaluation: true }, replace: true });
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.message || 'Failed to submit evaluation');
@@ -104,18 +104,7 @@ const StudentEvaluation = () => {
   const answeredCount = Object.keys(answers).length;
   const progressPercent = Math.round((answeredCount / questions.length) * 100);
 
-  if (loading) {
-    return (
-      <div className="evaluation-page">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>Loading evaluation form...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!course) {
+  if (loading || !course) {
     return (
       <div className="evaluation-page">
         <div className="error-message">Course not found</div>

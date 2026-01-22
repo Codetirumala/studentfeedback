@@ -104,9 +104,6 @@ const Enrollments = () => {
         </div>
       )}
 
-      {loading ? (
-        <div className="loading">Loading...</div>
-      ) : (
         <div className="enrollments-table">
           <table>
             <thead>
@@ -196,7 +193,6 @@ const Enrollments = () => {
             </tbody>
           </table>
         </div>
-      )}
     </div>
   );
 };

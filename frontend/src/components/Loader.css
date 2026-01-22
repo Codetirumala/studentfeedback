@@ -1,4 +1,4 @@
-/* Professional Global Loader */
+/* Professional Progress Ring Loader */
 
 .global-loader {
   position: fixed;
@@ -6,12 +6,12 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  animation: fadeIn 0.3s ease-in;
+  animation: fadeIn 0.4s ease-out;
 }
 
 @keyframes fadeIn {
@@ -25,13 +25,13 @@
 
 .loader-content {
   text-align: center;
-  animation: slideUp 0.5s ease-out;
+  animation: slideUp 0.6s ease-out;
 }
 
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(30px);
+    transform: translateY(40px);
   }
   to {
     opacity: 1;
@@ -39,94 +39,92 @@
   }
 }
 
-/* Animated Circles */
-.loader-animation {
-  display: flex;
-  gap: 12px;
+/* Progress Ring */
+.progress-ring-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
   margin-bottom: 30px;
 }
 
-.loader-circle {
-  width: 16px;
-  height: 16px;
-  background: white;
-  border-radius: 50%;
-  animation: bounce 1.4s infinite ease-in-out both;
+.progress-ring {
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.3));
+  animation: pulse 2s ease-in-out infinite;
 }
 
-.loader-circle:nth-child(1) {
-  animation-delay: -0.32s;
+.progress-circle {
+  transition: stroke-dashoffset 0.1s ease-out;
 }
 
-.loader-circle:nth-child(2) {
-  animation-delay: -0.16s;
+/* Percentage Text */
+.progress-text {
+  position: absolute;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
 }
 
-@keyframes bounce {
-  0%, 80%, 100% {
-    transform: scale(0);
-    opacity: 0.5;
-  }
-  40% {
-    transform: scale(1);
-    opacity: 1;
-  }
+.progress-number {
+  font-size: 36px;
+  font-weight: 700;
+  color: white;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: -1px;
 }
 
-/* Text */
+.progress-percent {
+  font-size: 18px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  margin-left: 2px;
+}
+
+/* Branding Text */
 .loader-title {
   color: white;
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
-  margin: 0 0 10px;
-  letter-spacing: 0.5px;
+  margin: 0 0 8px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .loader-subtitle {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 16px;
-  margin: 0 0 30px;
-  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  margin: 0;
+  font-weight: 400;
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 
-/* Progress Bar */
-.loader-bar {
-  width: 300px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 2px;
-  overflow: hidden;
-  margin: 0 auto;
-}
-
-.loader-bar-fill {
-  height: 100%;
-  background: white;
-  border-radius: 2px;
-  animation: progress 3s ease-out forwards;
-}
-
-@keyframes progress {
-  0% {
-    width: 0%;
+/* Subtle animation for the ring glow */
+@keyframes pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.3));
   }
-  100% {
-    width: 100%;
+  50% {
+    filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.5));
   }
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 480px) {
+  .progress-number {
+    font-size: 28px;
+  }
+  
   .loader-title {
-    font-size: 24px;
+    font-size: 22px;
   }
-
+  
   .loader-subtitle {
-    font-size: 14px;
-  }
-
-  .loader-bar {
-    width: 250px;
+    font-size: 12px;
   }
 }

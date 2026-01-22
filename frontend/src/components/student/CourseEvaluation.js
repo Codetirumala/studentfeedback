@@ -123,17 +123,6 @@ const CourseEvaluation = () => {
     return Math.round((answered / questions.length) * 100);
   };
 
-  if (loading) {
-    return (
-      <div className="evaluation-page">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (submitted) {
     return (
       <div className="evaluation-page">

@@ -37,10 +37,6 @@ const StudentDashboardHome = () => {
     }
   };
 
-  if (loading) {
-    return <div className="loading">Loading...</div>;
-  }
-
   const summaryCards = [
     {
       title: 'Enrolled Courses',

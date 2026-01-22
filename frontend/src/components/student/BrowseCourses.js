@@ -46,10 +46,6 @@ const BrowseCourses = () => {
     return enrollment?.status;
   };
 
-  if (loading) {
-    return <div className="loading">Loading...</div>;
-  }
-
   return (
     <div className="browse-courses">
       <div className="page-header">

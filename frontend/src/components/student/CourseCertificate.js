@@ -377,17 +377,6 @@ const CourseCertificate = () => {
     }, 500);
   };
 
-  if (loading) {
-    return (
-      <div className="certificate-page">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Checking eligibility...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="certificate-page">
       <button className="back-btn" onClick={() => navigate(-1)}>

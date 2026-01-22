@@ -50,6 +50,27 @@ router.post('/', auth, isStudent, async (req, res) => {
   }
 });
 
+// Get student's own evaluation for a course
+router.get('/my-evaluation', auth, isStudent, async (req, res) => {
+  try {
+    const { courseId } = req.query;
+    if (!courseId) return res.status(400).json({ message: 'courseId is required' });
+
+    const evaluation = await Evaluation.findOne({ 
+      student: req.user.userId, 
+      course: courseId 
+    }).populate('course', 'title courseCode');
+    
+    if (!evaluation) {
+      return res.status(404).json({ message: 'Evaluation not found' });
+    }
+    
+    res.json(evaluation);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Teacher fetches all evaluations for a course
 router.get('/course/:courseId', auth, isTeacher, async (req, res) => {
   try {

@@ -41,10 +41,6 @@ const ProgramAnalytics = () => {
     }
   };
 
-  if (loading) {
-    return <div className="loading">Loading...</div>;
-  }
-
   return (
     <div className="program-analytics">
       <div className="page-header">

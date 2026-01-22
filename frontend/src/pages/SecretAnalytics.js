@@ -38,16 +38,6 @@ const SecretAnalytics = () => {
     return (total / course.dayRatings.length).toFixed(1);
   };
 
-  if (loading) {
-    return (
-      <div className="sa-page">
-        <div className="sa-loader">
-          <div className="sa-spinner"></div>
-        </div>
-      </div>
-    );
-  }
-
   if (!data) {
     return (
       <div className="sa-page">

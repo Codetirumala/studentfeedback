@@ -207,9 +207,16 @@
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
 }
 
-.overall-feedback-btn:hover {
+.overall-feedback-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 8px 18px rgba(102, 126, 234, 0.4);
+}
+
+.overall-feedback-btn:disabled {
+  background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
 }
 
 .progress-bar-container {
@@ -669,6 +676,71 @@
   .rating-submit{flex-direction:column;align-items:stretch}
   .rating-comment{width:100%}
   .rating-submit-btn{width:100%}
+}
+
+/* Evaluation Status */
+.evaluation-status {
+  margin-top: 20px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 2px solid;
+  transition: all 0.3s ease;
+}
+
+.evaluation-status.submitted {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border-color: #10b981;
+}
+
+.evaluation-status.pending {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #f59e0b;
+}
+
+.evaluation-status-content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.evaluation-status .status-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.evaluation-status .status-icon.success {
+  color: #10b981;
+}
+
+.evaluation-status .status-icon.pending {
+  color: #f59e0b;
+}
+
+.evaluation-status .status-text h4 {
+  margin: 0 0 5px 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.evaluation-status.submitted .status-text h4 {
+  color: #065f46;
+}
+
+.evaluation-status.pending .status-text h4 {
+  color: #92400e;
+}
+
+.evaluation-status .status-text p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.evaluation-status.submitted .status-text p {
+  color: #059669;
+}
+
+.evaluation-status.pending .status-text p {
+  color: #a16207;
 }
 
 /* Certificate Prompt */

@@ -70,15 +70,6 @@ const StudentCourses = () => {
     return '#6b7280';
   };
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading your courses...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="student-courses">
       <div className="page-header">

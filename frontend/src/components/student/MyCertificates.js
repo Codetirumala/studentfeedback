@@ -23,14 +23,6 @@ const MyCertificates = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="my-certificates">
-        <div className="loading">Loading certificates...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="my-certificates">
       <h1>🎓 My Certificates</h1>

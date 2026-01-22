@@ -52,14 +52,6 @@ const SurveyAnalytics = () => {
     return labels[level] || level;
   };
 
-  if (loading) {
-    return (
-      <div className="survey-analytics">
-        <div className="loading">Loading analytics...</div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="survey-analytics">

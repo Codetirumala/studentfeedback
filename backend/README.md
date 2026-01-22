@@ -5,7 +5,7 @@
 1. Install dependencies:
 ```bash
 npm install
-```
+`jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj``
 
 2. Create `.env` file with your credentials (already configured)
 

@@ -11,6 +11,7 @@ import Profile from './pages/Profile';
 import StudentEvaluation from './pages/StudentEvaluation';
 import SecretAnalytics from './pages/SecretAnalytics';
 import CourseAnalytics from './pages/CourseAnalytics';
+import AdminDashboard from './pages/AdminDashboard';
 import './App.css';
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/secret-analytics" element={<SecretAnalytics />} />
           <Route path="/secret-analytics/course/:courseId" element={<CourseAnalytics />} />
           <Route

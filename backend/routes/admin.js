@@ -5,8 +5,10 @@ const User = require('../models/User');
 const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
 const Attendance = require('../models/Attendance');
+const AttendanceDayImage = require('../models/AttendanceDayImage');
 const Evaluation = require('../models/Evaluation');
 const DayRating = require('../models/DayRating');
+const Feedback = require('../models/Feedback');
 
 // Hardcoded Admin Credentials
 const ADMIN_CREDENTIALS = {
@@ -370,15 +372,352 @@ router.get('/export/:type', verifyAdmin, async (req, res) => {
           .populate('course', 'title courseCode');
         break;
       case 'evaluations':
-        data = await Evaluation.find()
-          .populate('student', 'name email')
+        const evalQuery = {};
+        if (req.query.courseId) {
+          evalQuery.course = req.query.courseId;
+        }
+        data = await Evaluation.find(evalQuery)
+          .populate('student', 'name email rollNumber branch section')
           .populate('course', 'title courseCode');
+        break;
+      case 'attendance':
+        // Pivot format: rows = students, columns = Day1..DayN
+        const attQuery = {};
+        if (req.query.courseId) {
+          attQuery.course = req.query.courseId;
+        }
+        const attRecords = await Attendance.find(attQuery)
+          .populate('student', 'name email rollNumber branch section')
+          .populate('course', 'title courseCode');
+
+        // Get courses involved to know totalDays
+        const courseIds = [...new Set(attRecords.map(r => r.course?._id?.toString()).filter(Boolean))];
+        const attCourses = await Course.find({ _id: { $in: courseIds } }).select('title courseCode totalDays');
+        const courseMap = {};
+        attCourses.forEach(c => { courseMap[c._id.toString()] = c; });
+
+        // Get enrolled students per course
+        const attEnrollments = await Enrollment.find(
+          courseIds.length === 1 ? { course: courseIds[0] } : { course: { $in: courseIds } }
+        ).populate('student', 'name email rollNumber branch section');
+
+        // Build pivot per course
+        const pivotRows = [];
+        const groupedByCourse = {};
+        
+        // Group attendance records by course
+        attRecords.forEach(r => {
+          const cid = r.course?._id?.toString();
+          if (!cid) return;
+          if (!groupedByCourse[cid]) groupedByCourse[cid] = [];
+          groupedByCourse[cid].push(r);
+        });
+
+        // Also include courses with enrolled students but no attendance yet
+        attEnrollments.forEach(enr => {
+          const cid = enr.course?.toString();
+          if (cid && !groupedByCourse[cid]) groupedByCourse[cid] = [];
+        });
+
+        for (const cid of Object.keys(groupedByCourse)) {
+          const course = courseMap[cid];
+          if (!course) continue;
+          const totalDays = course.totalDays || 1;
+          const records = groupedByCourse[cid];
+
+          // Build lookup: studentId -> { dayNumber -> status }
+          const studentAttMap = {};
+          records.forEach(r => {
+            const sid = r.student?._id?.toString();
+            if (!sid) return;
+            if (!studentAttMap[sid]) {
+              studentAttMap[sid] = {
+                name: r.student.name,
+                email: r.student.email,
+                rollNumber: r.student.rollNumber || '',
+                branch: r.student.branch || '',
+                section: r.student.section || '',
+                days: {}
+              };
+            }
+            studentAttMap[sid].days[r.dayNumber] = r.status;
+          });
+
+          // Also add enrolled students who may have no attendance
+          attEnrollments
+            .filter(e => e.course?.toString() === cid && e.student)
+            .forEach(e => {
+              const sid = e.student._id.toString();
+              if (!studentAttMap[sid]) {
+                studentAttMap[sid] = {
+                  name: e.student.name,
+                  email: e.student.email,
+                  rollNumber: e.student.rollNumber || '',
+                  branch: e.student.branch || '',
+                  section: e.student.section || '',
+                  days: {}
+                };
+              }
+            });
+
+          // Build rows for this course
+          for (const sid of Object.keys(studentAttMap)) {
+            const s = studentAttMap[sid];
+            const row = {
+              course: course.title,
+              courseCode: course.courseCode,
+              studentName: s.name,
+              email: s.email,
+              rollNumber: s.rollNumber,
+              branch: s.branch,
+              section: s.section
+            };
+            for (let d = 1; d <= totalDays; d++) {
+              row[`Day${d}`] = s.days[d] || 'Not Marked';
+            }
+            pivotRows.push(row);
+          }
+        }
+        data = pivotRows;
+        break;
+      case 'feedback':
+        data = await Feedback.find()
+          .populate('student', 'name email rollNumber branch')
+          .populate('course', 'title courseCode');
+        break;
+      case 'dayratings':
+        // Pivot format: rows = students, columns = Day1_Rating, Day1_Comment...
+        const drQuery = {};
+        if (req.query.courseId) {
+          drQuery.course = req.query.courseId;
+        }
+        const drRecords = await DayRating.find(drQuery)
+          .populate('student', 'name email rollNumber branch section')
+          .populate('course', 'title courseCode');
+
+        const drCourseIds = [...new Set(drRecords.map(r => r.course?._id?.toString()).filter(Boolean))];
+        const drCourses = await Course.find({ _id: { $in: drCourseIds } }).select('title courseCode totalDays');
+        const drCourseMap = {};
+        drCourses.forEach(c => { drCourseMap[c._id.toString()] = c; });
+
+        // Group by course
+        const drGrouped = {};
+        drRecords.forEach(r => {
+          const cid = r.course?._id?.toString();
+          if (!cid) return;
+          if (!drGrouped[cid]) drGrouped[cid] = [];
+          drGrouped[cid].push(r);
+        });
+
+        const drPivotRows = [];
+        for (const cid of Object.keys(drGrouped)) {
+          const course = drCourseMap[cid];
+          if (!course) continue;
+          const totalDays = course.totalDays || 1;
+          const records = drGrouped[cid];
+
+          // Build lookup: studentId -> { dayNumber -> { rating, comment } }
+          const studentMap = {};
+          records.forEach(r => {
+            const sid = r.student?._id?.toString();
+            if (!sid) return;
+            if (!studentMap[sid]) {
+              studentMap[sid] = {
+                name: r.student.name,
+                email: r.student.email,
+                rollNumber: r.student.rollNumber || '',
+                branch: r.student.branch || '',
+                days: {}
+              };
+            }
+            studentMap[sid].days[r.dayNumber] = { rating: r.rating, comment: r.comment || '' };
+          });
+
+          for (const sid of Object.keys(studentMap)) {
+            const s = studentMap[sid];
+            const row = {
+              course: course.title,
+              courseCode: course.courseCode,
+              studentName: s.name,
+              email: s.email,
+              rollNumber: s.rollNumber,
+              branch: s.branch
+            };
+            for (let d = 1; d <= totalDays; d++) {
+              row[`Day${d}_Rating`] = s.days[d] ? s.days[d].rating : 'Not Rated';
+              row[`Day${d}_Comment`] = s.days[d] ? s.days[d].comment : '';
+            }
+            drPivotRows.push(row);
+          }
+        }
+        data = drPivotRows;
         break;
       default:
         return res.status(400).json({ message: 'Invalid export type' });
     }
 
     res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Admin: Get all courses with attendance report data (structured, with images)
+router.get('/attendance-reports', verifyAdmin, async (req, res) => {
+  try {
+    const courses = await Course.find().populate('teacher', 'name email').sort({ createdAt: -1 });
+
+    const result = [];
+
+    for (const course of courses) {
+      // Get enrollments
+      const enrollments = await Enrollment.find({
+        course: course._id,
+        status: 'approved'
+      }).populate('student', 'name email rollNumber branch section');
+
+      // Get attendance
+      const attendance = await Attendance.find({ course: course._id }).sort({ dayNumber: 1 });
+
+      // Get day images
+      const dayImages = await AttendanceDayImage.find({ course: course._id }).sort({ dayNumber: 1 });
+
+      // Build day-wise data
+      const daysData = [];
+      for (let day = 1; day <= course.totalDays; day++) {
+        const dayAtt = attendance.filter(a => a.dayNumber === day);
+        const dayImg = dayImages.find(di => di.dayNumber === day);
+
+        const students = enrollments.map(enrollment => {
+          const att = dayAtt.find(a => a.student.toString() === enrollment.student._id.toString());
+          return {
+            name: enrollment.student.name,
+            rollNumber: enrollment.student.rollNumber || '',
+            branch: enrollment.student.branch || '',
+            section: enrollment.student.section || '',
+            status: att ? att.status : 'not-marked'
+          };
+        });
+
+        daysData.push({
+          dayNumber: day,
+          sectionTitle: course.sections && course.sections[day - 1] ? course.sections[day - 1].title : `Day ${day}`,
+          classImage: dayImg ? dayImg.classImage : '',
+          attendanceSheetImage: dayImg ? dayImg.attendanceSheetImage : '',
+          students,
+          presentCount: students.filter(s => s.status === 'present').length,
+          absentCount: students.filter(s => s.status === 'absent').length,
+          totalStudents: students.length
+        });
+      }
+
+      // Build student summary
+      const studentSummary = enrollments.map(enrollment => {
+        const stuAtt = attendance.filter(a => a.student.toString() === enrollment.student._id.toString());
+        const presentDays = stuAtt.filter(a => a.status === 'present').length;
+        const absentDays = stuAtt.filter(a => a.status === 'absent').length;
+        return {
+          name: enrollment.student.name,
+          email: enrollment.student.email,
+          rollNumber: enrollment.student.rollNumber || '',
+          branch: enrollment.student.branch || '',
+          section: enrollment.student.section || '',
+          presentDays,
+          absentDays,
+          totalDays: course.totalDays,
+          percentage: course.totalDays > 0 ? Math.round((presentDays / course.totalDays) * 100) : 0
+        };
+      });
+
+      result.push({
+        courseId: course._id,
+        title: course.title,
+        courseCode: course.courseCode || '',
+        teacher: course.teacher ? course.teacher.name : 'Unknown',
+        totalDays: course.totalDays,
+        totalStudents: enrollments.length,
+        daysData,
+        studentSummary
+      });
+    }
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Admin: Get single course attendance report data (with images)
+router.get('/attendance-reports/:courseId', verifyAdmin, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const course = await Course.findById(courseId).populate('teacher', 'name email');
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    const enrollments = await Enrollment.find({
+      course: courseId,
+      status: 'approved'
+    }).populate('student', 'name email rollNumber branch section');
+
+    const attendance = await Attendance.find({ course: courseId }).sort({ dayNumber: 1 });
+    const dayImages = await AttendanceDayImage.find({ course: courseId }).sort({ dayNumber: 1 });
+
+    const daysData = [];
+    for (let day = 1; day <= course.totalDays; day++) {
+      const dayAtt = attendance.filter(a => a.dayNumber === day);
+      const dayImg = dayImages.find(di => di.dayNumber === day);
+
+      const students = enrollments.map(enrollment => {
+        const att = dayAtt.find(a => a.student.toString() === enrollment.student._id.toString());
+        return {
+          name: enrollment.student.name,
+          email: enrollment.student.email,
+          rollNumber: enrollment.student.rollNumber || '',
+          branch: enrollment.student.branch || '',
+          section: enrollment.student.section || '',
+          status: att ? att.status : 'not-marked'
+        };
+      });
+
+      daysData.push({
+        dayNumber: day,
+        sectionTitle: course.sections && course.sections[day - 1] ? course.sections[day - 1].title : `Day ${day}`,
+        classImage: dayImg ? dayImg.classImage : '',
+        attendanceSheetImage: dayImg ? dayImg.attendanceSheetImage : '',
+        students,
+        presentCount: students.filter(s => s.status === 'present').length,
+        absentCount: students.filter(s => s.status === 'absent').length,
+        totalStudents: students.length
+      });
+    }
+
+    const studentSummary = enrollments.map(enrollment => {
+      const stuAtt = attendance.filter(a => a.student.toString() === enrollment.student._id.toString());
+      const presentDays = stuAtt.filter(a => a.status === 'present').length;
+      const absentDays = stuAtt.filter(a => a.status === 'absent').length;
+      return {
+        name: enrollment.student.name,
+        email: enrollment.student.email,
+        rollNumber: enrollment.student.rollNumber || '',
+        branch: enrollment.student.branch || '',
+        section: enrollment.student.section || '',
+        presentDays,
+        absentDays,
+        totalDays: course.totalDays,
+        percentage: course.totalDays > 0 ? Math.round((presentDays / course.totalDays) * 100) : 0
+      };
+    });
+
+    res.json({
+      courseId: course._id,
+      title: course.title,
+      courseCode: course.courseCode || '',
+      teacher: course.teacher ? course.teacher.name : 'Unknown',
+      totalDays: course.totalDays,
+      totalStudents: enrollments.length,
+      daysData,
+      studentSummary
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

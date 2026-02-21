@@ -10,8 +10,8 @@ import Enrollments from '../components/teacher/Enrollments';
 import AttendanceManagement from '../components/teacher/AttendanceManagement';
 import ProgramAnalytics from '../components/teacher/ProgramAnalytics';
 import Timetable from '../components/teacher/Timetable';
-import Reports from '../components/teacher/Reports';
 import SurveyAnalytics from '../components/teacher/SurveyAnalytics';
+import Reports from '../components/teacher/Reports';
 import Profile from './Profile';
 import './Dashboard.css';
 
@@ -31,8 +31,8 @@ const TeacherDashboard = () => {
           <Route path="enrollments" element={<Enrollments />} />
           <Route path="attendance" element={<AttendanceManagement />} />
           <Route path="analytics" element={<ProgramAnalytics />} />
-          <Route path="timetable" element={<Timetable />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="timetable" element={<Timetable />} />
           <Route path="profile" element={<Profile />} />
         </Routes>
       </div>

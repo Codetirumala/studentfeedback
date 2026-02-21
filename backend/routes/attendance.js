@@ -1,9 +1,43 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const { auth, isTeacher, isStudent } = require('../middleware/auth');
 const Attendance = require('../models/Attendance');
+const AttendanceDayImage = require('../models/AttendanceDayImage');
 const Enrollment = require('../models/Enrollment');
 const Course = require('../models/Course');
+const { uploadImage } = require('../utils/cloudinary');
+
+// Configure multer for attendance image uploads
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, 'att_' + Date.now() + '_' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) {
+      return cb(null, true);
+    }
+    cb(new Error('Only image files are allowed'));
+  }
+});
 
 // Mark attendance (teacher only)
 router.post('/mark', auth, isTeacher, async (req, res) => {
@@ -292,6 +326,212 @@ router.get('/my-attendance', auth, isStudent, async (req, res) => {
     }));
 
     res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Upload attendance day images (class photo & attendance sheet)
+router.post('/day-images/upload', auth, isTeacher, upload.fields([
+  { name: 'classImage', maxCount: 1 },
+  { name: 'attendanceSheetImage', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const { courseId, dayNumber } = req.body;
+
+    if (!courseId || !dayNumber) {
+      return res.status(400).json({ message: 'courseId and dayNumber are required' });
+    }
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    if (course.teacher.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    const dayNum = parseInt(dayNumber, 10);
+    if (isNaN(dayNum) || dayNum < 1 || dayNum > course.totalDays) {
+      return res.status(400).json({ message: 'Invalid day number' });
+    }
+
+    // Find existing record or create new one
+    let dayImage = await AttendanceDayImage.findOne({ course: courseId, dayNumber: dayNum });
+    if (!dayImage) {
+      dayImage = new AttendanceDayImage({
+        course: courseId,
+        dayNumber: dayNum,
+        uploadedBy: req.user.userId
+      });
+    }
+
+    // Upload class image if provided
+    if (req.files && req.files.classImage && req.files.classImage[0]) {
+      try {
+        const classImageUrl = await uploadImage(req.files.classImage[0]);
+        dayImage.classImage = classImageUrl;
+        // Clean up temp file
+        if (fs.existsSync(req.files.classImage[0].path)) {
+          fs.unlinkSync(req.files.classImage[0].path);
+        }
+      } catch (uploadErr) {
+        console.error('Class image upload error:', uploadErr);
+        if (fs.existsSync(req.files.classImage[0].path)) {
+          fs.unlinkSync(req.files.classImage[0].path);
+        }
+      }
+    }
+
+    // Upload attendance sheet image if provided
+    if (req.files && req.files.attendanceSheetImage && req.files.attendanceSheetImage[0]) {
+      try {
+        const sheetImageUrl = await uploadImage(req.files.attendanceSheetImage[0]);
+        dayImage.attendanceSheetImage = sheetImageUrl;
+        // Clean up temp file
+        if (fs.existsSync(req.files.attendanceSheetImage[0].path)) {
+          fs.unlinkSync(req.files.attendanceSheetImage[0].path);
+        }
+      } catch (uploadErr) {
+        console.error('Attendance sheet image upload error:', uploadErr);
+        if (fs.existsSync(req.files.attendanceSheetImage[0].path)) {
+          fs.unlinkSync(req.files.attendanceSheetImage[0].path);
+        }
+      }
+    }
+
+    dayImage.uploadedAt = new Date();
+    await dayImage.save();
+
+    res.json({ message: 'Images uploaded successfully', dayImage });
+  } catch (error) {
+    // Clean up any temp files on error
+    if (req.files) {
+      Object.values(req.files).forEach(fileArr => {
+        fileArr.forEach(file => {
+          if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        });
+      });
+    }
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get attendance day images for a specific course and day
+router.get('/day-images/:courseId/:dayNumber', auth, async (req, res) => {
+  try {
+    const { courseId, dayNumber } = req.params;
+
+    const dayImage = await AttendanceDayImage.findOne({
+      course: courseId,
+      dayNumber: parseInt(dayNumber, 10)
+    });
+
+    res.json(dayImage || { classImage: '', attendanceSheetImage: '' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get all attendance day images for a course
+router.get('/day-images/:courseId', auth, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const dayImages = await AttendanceDayImage.find({ course: courseId }).sort({ dayNumber: 1 });
+    res.json(dayImages);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get full attendance report data for a course (with images)
+router.get('/report/:courseId', auth, isTeacher, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+
+    const course = await Course.findById(courseId).populate('teacher', 'name email');
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    if (course.teacher._id.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    // Get all enrollments
+    const enrollments = await Enrollment.find({
+      course: courseId,
+      status: 'approved'
+    }).populate('student', 'name email rollNumber branch section');
+
+    // Get all attendance records
+    const attendance = await Attendance.find({ course: courseId }).sort({ dayNumber: 1 });
+
+    // Get all day images
+    const dayImages = await AttendanceDayImage.find({ course: courseId }).sort({ dayNumber: 1 });
+
+    // Build day-wise data
+    const daysData = [];
+    for (let day = 1; day <= course.totalDays; day++) {
+      const dayAttendance = attendance.filter(a => a.dayNumber === day);
+      const dayImage = dayImages.find(di => di.dayNumber === day);
+
+      const students = enrollments.map(enrollment => {
+        const att = dayAttendance.find(a => a.student.toString() === enrollment.student._id.toString());
+        return {
+          studentId: enrollment.student._id,
+          name: enrollment.student.name,
+          email: enrollment.student.email,
+          rollNumber: enrollment.student.rollNumber || '',
+          branch: enrollment.student.branch || '',
+          section: enrollment.student.section || '',
+          status: att ? att.status : 'not-marked',
+          notes: att ? att.notes : ''
+        };
+      });
+
+      daysData.push({
+        dayNumber: day,
+        sectionTitle: course.sections && course.sections[day - 1] ? course.sections[day - 1].title : `Day ${day}`,
+        classImage: dayImage ? dayImage.classImage : '',
+        attendanceSheetImage: dayImage ? dayImage.attendanceSheetImage : '',
+        students,
+        presentCount: students.filter(s => s.status === 'present').length,
+        absentCount: students.filter(s => s.status === 'absent').length,
+        totalStudents: students.length
+      });
+    }
+
+    // Build student summary
+    const studentSummary = enrollments.map(enrollment => {
+      const studentAttendance = attendance.filter(a => a.student.toString() === enrollment.student._id.toString());
+      const presentDays = studentAttendance.filter(a => a.status === 'present').length;
+      const absentDays = studentAttendance.filter(a => a.status === 'absent').length;
+      return {
+        name: enrollment.student.name,
+        email: enrollment.student.email,
+        rollNumber: enrollment.student.rollNumber || '',
+        branch: enrollment.student.branch || '',
+        section: enrollment.student.section || '',
+        presentDays,
+        absentDays,
+        totalDays: course.totalDays,
+        percentage: course.totalDays > 0 ? Math.round((presentDays / course.totalDays) * 100) : 0
+      };
+    });
+
+    res.json({
+      course: {
+        title: course.title,
+        courseCode: course.courseCode,
+        totalDays: course.totalDays,
+        teacher: course.teacher.name
+      },
+      daysData,
+      studentSummary,
+      totalStudents: enrollments.length
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

@@ -31,6 +31,27 @@ const AdminDashboard = () => {
     search: ''
   });
 
+  // Course picker modals
+  const [showEvalPicker, setShowEvalPicker] = useState(false);
+  const [evalCourseList, setEvalCourseList] = useState([]);
+  const [showAttPicker, setShowAttPicker] = useState(false);
+  const [attCourseList, setAttCourseList] = useState([]);
+  const [showDrPicker, setShowDrPicker] = useState(false);
+  const [drCourseList, setDrCourseList] = useState([]);
+
+  // Generic report preview
+  const [reportPreview, setReportPreview] = useState(null);
+  const [reportPreviewLoading, setReportPreviewLoading] = useState(false);
+
+  // Attendance Reports tab
+  const [attReportCourses, setAttReportCourses] = useState([]);
+  const [attReportLoading, setAttReportLoading] = useState(false);
+  const [attReportExpanded, setAttReportExpanded] = useState(null);
+  const [attReportDetail, setAttReportDetail] = useState(null);
+  const [attReportDetailLoading, setAttReportDetailLoading] = useState(false);
+  const [attReportExpandedDay, setAttReportExpandedDay] = useState(null);
+  const [attReportImageModal, setAttReportImageModal] = useState(null);
+
   // Fetch data function with useCallback for stable reference
   const fetchAllData = useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true);
@@ -142,41 +163,179 @@ const AdminDashboard = () => {
     }
   };
 
-  const exportData = async (type) => {
+  const reportLabels = {
+    students: '🎓 Students Data',
+    teachers: '👨‍🏫 Teachers Data',
+    courses: '📚 Courses Data',
+    enrollments: '📝 Enrollments Data',
+    evaluations: '📋 Evaluations Data',
+    attendance: '✅ Attendance Data',
+    feedback: '💬 Feedback Data',
+    dayratings: '⭐ Day Ratings Data'
+  };
+
+  const fetchReportPreview = async (type, courseId = null, label = null) => {
     try {
-      const res = await axios.get(`${API_URL}/admin/export/${type}`, {
+      setReportPreviewLoading(true);
+      setShowEvalPicker(false);
+      setShowAttPicker(false);
+      setShowDrPicker(false);
+      let url = `${API_URL}/admin/export/${type}`;
+      if (courseId) url += `?courseId=${courseId}`;
+      const res = await axios.get(url, {
         headers: { Authorization: `Bearer ${adminToken}` }
       });
-      
-      const data = res.data;
-      if (data.length === 0) {
-        alert('No data to export');
+      if (res.data.length === 0) {
+        alert('No data found');
+        setReportPreviewLoading(false);
         return;
       }
-      
-      const headers = Object.keys(data[0]).filter(k => k !== '_id' && k !== '__v');
-      const csvRows = [headers.join(',')];
-      
-      data.forEach(item => {
-        const values = headers.map(h => {
-          let val = item[h];
-          if (typeof val === 'object') val = JSON.stringify(val);
-          if (typeof val === 'string') val = `"${val.replace(/"/g, '""')}"`;
-          return val || '';
-        });
-        csvRows.push(values.join(','));
-      });
-      
-      const csvContent = csvRows.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${type}_export_${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
+      const title = label || reportLabels[type] || type;
+      setReportPreview({ data: res.data, type, title, courseId });
     } catch (error) {
-      alert('Export failed');
+      alert('Failed to load data');
+    } finally {
+      setReportPreviewLoading(false);
     }
+  };
+
+  const getPreviewColumns = () => {
+    if (!reportPreview || !reportPreview.data.length) return [];
+    const first = reportPreview.data[0];
+    const type = reportPreview.type;
+
+    if (type === 'evaluations') {
+      const answerKeys = Object.keys(first.answers || {}).sort();
+      return [
+        { key: '_student_name', label: 'Student', render: item => item.student?.name || '-' },
+        { key: '_student_email', label: 'Email', render: item => item.student?.email || '-' },
+        { key: '_student_roll', label: 'Roll No', render: item => item.student?.rollNumber || '-' },
+        { key: '_student_branch', label: 'Branch', render: item => item.student?.branch || '-' },
+        ...answerKeys.map(q => ({ key: q, label: q.toUpperCase(), render: item => item.answers?.[q] ?? '-', isAnswer: true }))
+      ];
+    }
+
+    if (type === 'attendance') {
+      const dayKeys = Object.keys(first).filter(k => k.startsWith('Day')).sort((a, b) => {
+        return parseInt(a.replace('Day', '')) - parseInt(b.replace('Day', ''));
+      });
+      return [
+        { key: 'course', label: 'Course', render: item => item.course || '-' },
+        { key: 'studentName', label: 'Student', render: item => item.studentName || '-' },
+        { key: 'rollNumber', label: 'Roll No', render: item => item.rollNumber || '-' },
+        { key: 'branch', label: 'Branch', render: item => item.branch || '-' },
+        ...dayKeys.map(d => ({
+          key: d, label: d, render: item => item[d] || '-',
+          isStatus: true
+        }))
+      ];
+    }
+
+    if (type === 'dayratings') {
+      const ratingKeys = Object.keys(first).filter(k => k.match(/^Day\d+_Rating$/)).sort((a, b) => {
+        return parseInt(a.match(/\d+/)[0]) - parseInt(b.match(/\d+/)[0]);
+      });
+      const cols = [
+        { key: 'course', label: 'Course', render: item => item.course || '-' },
+        { key: 'studentName', label: 'Student', render: item => item.studentName || '-' },
+        { key: 'rollNumber', label: 'Roll No', render: item => item.rollNumber || '-' },
+        { key: 'branch', label: 'Branch', render: item => item.branch || '-' },
+      ];
+      ratingKeys.forEach(rk => {
+        const dayNum = rk.match(/\d+/)[0];
+        cols.push({
+          key: rk, label: `D${dayNum} ⭐`, render: item => item[rk] ?? '-',
+          isRating: true
+        });
+        cols.push({
+          key: `Day${dayNum}_Comment`, label: `D${dayNum} 💬`, render: item => item[`Day${dayNum}_Comment`] || '-',
+          isComment: true
+        });
+      });
+      return cols;
+    }
+
+    // Generic: flatten object keys smartly
+    const skip = ['_id', '__v', 'password', 'profilePicture'];
+    return Object.keys(first).filter(k => !skip.includes(k)).map(k => ({
+      key: k,
+      label: k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()),
+      render: item => {
+        let val = item[k];
+        if (val === null || val === undefined) return '-';
+        if (typeof val === 'object') {
+          if (val.name) return val.name;
+          if (val.title) return val.title;
+          return JSON.stringify(val).substring(0, 60);
+        }
+        if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+        if (typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T/)) {
+          return new Date(val).toLocaleDateString('en-GB');
+        }
+        return String(val);
+      }
+    }));
+  };
+
+  const downloadReportPreview = () => {
+    if (!reportPreview) return;
+    const data = reportPreview.data;
+    const cols = getPreviewColumns();
+    const csvRows = [cols.map(c => c.label).join(',')];
+    data.forEach(item => {
+      const values = cols.map(c => {
+        let val = c.render(item);
+        if (typeof val === 'string') val = `"${val.replace(/"/g, '""')}"`;
+        return val || '';
+      });
+      csvRows.push(values.join(','));
+    });
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    const dateStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+    const safeName = reportPreview.title.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_');
+    a.download = `${reportPreview.type}_${safeName}_${dateStr}.csv`;
+    a.click();
+  };
+
+  // Attendance Reports tab functions
+  const fetchAttReportCourses = async () => {
+    setAttReportLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.get(`${API_URL}/admin/attendance-reports`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAttReportCourses(res.data);
+    } catch (error) {
+      console.error('Error fetching attendance reports:', error);
+    }
+    setAttReportLoading(false);
+  };
+
+  const fetchAttReportDetail = async (courseId) => {
+    if (attReportExpanded === courseId) {
+      setAttReportExpanded(null);
+      setAttReportDetail(null);
+      setAttReportExpandedDay(null);
+      return;
+    }
+    setAttReportExpanded(courseId);
+    setAttReportDetailLoading(true);
+    setAttReportExpandedDay(null);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.get(`${API_URL}/admin/attendance-reports/${courseId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAttReportDetail(res.data);
+    } catch (error) {
+      console.error('Error fetching course attendance detail:', error);
+    }
+    setAttReportDetailLoading(false);
   };
 
   // Filter functions
@@ -326,6 +485,12 @@ const AdminDashboard = () => {
             onClick={() => setActiveTab('reports')}
           >
             <span className="nav-icon">📁</span> Reports
+          </button>
+          <button 
+            className={activeTab === 'attendance-reports' ? 'active' : ''} 
+            onClick={() => setActiveTab('attendance-reports')}
+          >
+            <span className="nav-icon">📸</span> Attendance Reports
           </button>
         </nav>
 
@@ -890,8 +1055,8 @@ const AdminDashboard = () => {
                 <div className="rc-icon">🎓</div>
                 <h4>Students Data</h4>
                 <p>Export all student information including branch, section, and contact details</p>
-                <button onClick={() => exportData('students')}>
-                  📥 Download CSV
+                <button onClick={() => fetchReportPreview('students')}>
+                  🔍 Preview & Export
                 </button>
               </div>
 
@@ -899,8 +1064,8 @@ const AdminDashboard = () => {
                 <div className="rc-icon">👨‍🏫</div>
                 <h4>Teachers Data</h4>
                 <p>Export all teacher profiles with department and approval status</p>
-                <button onClick={() => exportData('teachers')}>
-                  📥 Download CSV
+                <button onClick={() => fetchReportPreview('teachers')}>
+                  🔍 Preview & Export
                 </button>
               </div>
 
@@ -908,8 +1073,8 @@ const AdminDashboard = () => {
                 <div className="rc-icon">📚</div>
                 <h4>Courses Data</h4>
                 <p>Export all courses with schedule, teacher assignments and status</p>
-                <button onClick={() => exportData('courses')}>
-                  📥 Download CSV
+                <button onClick={() => fetchReportPreview('courses')}>
+                  🔍 Preview & Export
                 </button>
               </div>
 
@@ -917,20 +1082,446 @@ const AdminDashboard = () => {
                 <div className="rc-icon">📝</div>
                 <h4>Enrollments Data</h4>
                 <p>Export all enrollment records with student and course details</p>
-                <button onClick={() => exportData('enrollments')}>
-                  📥 Download CSV
+                <button onClick={() => fetchReportPreview('enrollments')}>
+                  🔍 Preview & Export
                 </button>
               </div>
 
               <div className="report-card">
                 <div className="rc-icon">📋</div>
                 <h4>Evaluations Data</h4>
-                <p>Export all student evaluations and feedback responses</p>
-                <button onClick={() => exportData('evaluations')}>
-                  📥 Download CSV
+                <p>Select a course to export its evaluation responses</p>
+                <button onClick={async () => {
+                  try {
+                    const token = localStorage.getItem('adminToken');
+                    const res = await axios.get(`${API_URL}/admin/courses`, { headers: { Authorization: `Bearer ${token}` } });
+                    setEvalCourseList(res.data || []);
+                    setShowEvalPicker(true);
+                  } catch (err) {
+                    alert('Failed to load courses');
+                  }
+                }}>
+                  � Preview & Export
+                </button>
+              </div>
+
+              <div className="report-card">
+                <div className="rc-icon">✅</div>
+                <h4>Attendance Data</h4>
+                <p>Select a course to export day-wise attendance records</p>
+                <button onClick={async () => {
+                  try {
+                    const token = localStorage.getItem('adminToken');
+                    const res = await axios.get(`${API_URL}/admin/courses`, { headers: { Authorization: `Bearer ${token}` } });
+                    setAttCourseList(res.data || []);
+                    setShowAttPicker(true);
+                  } catch (err) {
+                    alert('Failed to load courses');
+                  }
+                }}>
+                  � Preview & Export
+                </button>
+              </div>
+
+              <div className="report-card">
+                <div className="rc-icon">💬</div>
+                <h4>Feedback Data</h4>
+                <p>Export all student feedback submissions across courses</p>
+                <button onClick={() => fetchReportPreview('feedback')}>
+                  🔍 Preview & Export
+                </button>
+              </div>
+
+              <div className="report-card">
+                <div className="rc-icon">⭐</div>
+                <h4>Day Ratings Data</h4>
+                <p>Select a course to export day-wise student ratings</p>
+                <button onClick={async () => {
+                  try {
+                    const token = localStorage.getItem('adminToken');
+                    const res = await axios.get(`${API_URL}/admin/courses`, { headers: { Authorization: `Bearer ${token}` } });
+                    setDrCourseList(res.data || []);
+                    setShowDrPicker(true);
+                  } catch (err) {
+                    alert('Failed to load courses');
+                  }
+                }}>
+                  🔍 Preview & Export
                 </button>
               </div>
             </div>
+
+            {/* Evaluation Course Picker Modal */}
+            {showEvalPicker && (
+              <div className="eval-picker-overlay" onClick={() => setShowEvalPicker(false)}>
+                <div className="eval-picker-modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="eval-picker-header">
+                    <h3>📋 Select Course</h3>
+                    <button className="eval-picker-close" onClick={() => setShowEvalPicker(false)}>✕</button>
+                  </div>
+                  <p className="eval-picker-desc">Choose a course to export its evaluation data</p>
+                  <div className="eval-picker-list">
+                    {evalCourseList.length === 0 ? (
+                      <p className="eval-picker-empty">No courses found</p>
+                    ) : (
+                      evalCourseList.map(course => (
+                        <button
+                          key={course._id}
+                          className="eval-picker-item"
+                          onClick={() => {
+                            fetchReportPreview('evaluations', course._id, course.title);
+                          }}
+                        >
+                          <div className="eval-picker-course-info">
+                            <span className="eval-picker-title">{course.title}</span>
+                            <span className="eval-picker-code">{course.courseCode}</span>
+                          </div>
+                          <span className="eval-picker-arrow">�</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Attendance Course Picker Modal */}}
+            {showAttPicker && (
+              <div className="eval-picker-overlay" onClick={() => setShowAttPicker(false)}>
+                <div className="eval-picker-modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="eval-picker-header">
+                    <h3>✅ Select Course</h3>
+                    <button className="eval-picker-close" onClick={() => setShowAttPicker(false)}>✕</button>
+                  </div>
+                  <p className="eval-picker-desc">Choose a course to export its attendance data</p>
+                  <div className="eval-picker-list">
+                    {attCourseList.length === 0 ? (
+                      <p className="eval-picker-empty">No courses found</p>
+                    ) : (
+                      <>
+                        <button
+                          className="eval-picker-item"
+                          onClick={() => {
+                            fetchReportPreview('attendance', null, 'All Courses Attendance');
+                          }}
+                        >
+                          <div className="eval-picker-course-info">
+                            <span className="eval-picker-title">All Courses</span>
+                            <span className="eval-picker-code">Export everything</span>
+                          </div>
+                          <span className="eval-picker-arrow">🔍</span>
+                        </button>
+                        {attCourseList.map(course => (
+                          <button
+                            key={course._id}
+                            className="eval-picker-item"
+                            onClick={() => {
+                              fetchReportPreview('attendance', course._id, course.title);
+                            }}
+                          >
+                            <div className="eval-picker-course-info">
+                              <span className="eval-picker-title">{course.title}</span>
+                              <span className="eval-picker-code">{course.courseCode}</span>
+                            </div>
+                            <span className="eval-picker-arrow">�</span>
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Day Ratings Course Picker Modal */}
+            {showDrPicker && (
+              <div className="eval-picker-overlay" onClick={() => setShowDrPicker(false)}>
+                <div className="eval-picker-modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="eval-picker-header">
+                    <h3>⭐ Select Course</h3>
+                    <button className="eval-picker-close" onClick={() => setShowDrPicker(false)}>✕</button>
+                  </div>
+                  <p className="eval-picker-desc">Choose a course to export its day ratings</p>
+                  <div className="eval-picker-list">
+                    {drCourseList.length === 0 ? (
+                      <p className="eval-picker-empty">No courses found</p>
+                    ) : (
+                      <>
+                        <button
+                          className="eval-picker-item"
+                          onClick={() => fetchReportPreview('dayratings', null, 'All Courses Day Ratings')}
+                        >
+                          <div className="eval-picker-course-info">
+                            <span className="eval-picker-title">All Courses</span>
+                            <span className="eval-picker-code">Export everything</span>
+                          </div>
+                          <span className="eval-picker-arrow">🔍</span>
+                        </button>
+                        {drCourseList.map(course => (
+                          <button
+                            key={course._id}
+                            className="eval-picker-item"
+                            onClick={() => fetchReportPreview('dayratings', course._id, course.title)}
+                          >
+                            <div className="eval-picker-course-info">
+                              <span className="eval-picker-title">{course.title}</span>
+                              <span className="eval-picker-code">{course.courseCode}</span>
+                            </div>
+                            <span className="eval-picker-arrow">🔍</span>
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Report Preview Loading */}
+            {reportPreviewLoading && (
+              <div className="eval-picker-overlay">
+                <div className="eval-preview-loading">
+                  <div className="eval-spinner"></div>
+                  <span>Loading data...</span>
+                </div>
+              </div>
+            )}
+
+            {/* Generic Report Data Preview Modal */}
+            {reportPreview && (() => {
+              const cols = getPreviewColumns();
+              return (
+                <div className="eval-picker-overlay" onClick={() => setReportPreview(null)}>
+                  <div className="eval-preview-modal" onClick={(e) => e.stopPropagation()}>
+                    <div className="eval-preview-header">
+                      <div>
+                        <h3>{reportLabels[reportPreview.type]?.split(' ')[0] || '📄'} {reportPreview.title}</h3>
+                        <p className="eval-preview-subtitle">{reportPreview.data.length} record{reportPreview.data.length !== 1 ? 's' : ''} found • {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                      </div>
+                      <div className="eval-preview-actions">
+                        <button className="eval-download-btn" onClick={downloadReportPreview}>📥 Download CSV</button>
+                        <button className="eval-picker-close" onClick={() => setReportPreview(null)}>✕</button>
+                      </div>
+                    </div>
+                    <div className="eval-preview-table-wrap">
+                      <table className="eval-preview-table">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            {cols.map(col => (
+                              <th key={col.key}>{col.label}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reportPreview.data.map((item, idx) => (
+                            <tr key={idx}>
+                              <td className="eval-row-num">{idx + 1}</td>
+                              {cols.map(col => (
+                                <td key={col.key} className={col.isAnswer ? 'eval-answer-cell' : col.isStatus ? `eval-status-cell ${item[col.key] === 'present' ? 'status-present' : item[col.key] === 'absent' ? 'status-absent' : 'status-notmarked'}` : col.isRating ? 'rating-cell' : col.isComment ? 'comment-cell' : ''}>
+                                  {col.render(item)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* Attendance Reports Tab */}
+        {activeTab === 'attendance-reports' && (
+          <div className="att-reports-tab">
+            <div className="att-reports-header">
+              <h2>📸 Course-wise Attendance Reports</h2>
+              <p>View attendance data with class images and attendance sheet images for all courses</p>
+              <button className="att-reports-refresh-btn" onClick={fetchAttReportCourses} disabled={attReportLoading}>
+                {attReportLoading ? '⏳ Loading...' : '🔄 Load / Refresh'}
+              </button>
+            </div>
+
+            {attReportCourses.length === 0 && !attReportLoading && (
+              <div className="att-reports-empty">
+                <span>📋</span>
+                <p>Click "Load / Refresh" to fetch course attendance data</p>
+              </div>
+            )}
+
+            <div className="att-reports-course-list">
+              {attReportCourses.map(course => (
+                <div className={`att-reports-course-card ${attReportExpanded === course.courseId ? 'expanded' : ''}`} key={course.courseId}>
+                  <div className="att-reports-course-row" onClick={() => fetchAttReportDetail(course.courseId)}>
+                    <div className="att-reports-course-info">
+                      <h3>{course.title}</h3>
+                      <div className="att-reports-course-meta">
+                        <span>📝 {course.courseCode || 'N/A'}</span>
+                        <span>👨‍🏫 {course.teacher}</span>
+                        <span>📅 {course.totalDays} Days</span>
+                        <span>🎓 {course.totalStudents} Students</span>
+                      </div>
+                    </div>
+                    <span className="att-reports-expand-icon">{attReportExpanded === course.courseId ? '▼' : '▶'}</span>
+                  </div>
+
+                  {attReportExpanded === course.courseId && (
+                    <div className="att-reports-detail">
+                      {attReportDetailLoading ? (
+                        <div className="att-reports-detail-loading">⏳ Loading course data...</div>
+                      ) : attReportDetail ? (
+                        <>
+                          {/* Student Summary */}
+                          <div className="att-reports-summary">
+                            <h4>Student Summary</h4>
+                            <div className="att-reports-table-wrap">
+                              <table className="att-reports-table">
+                                <thead>
+                                  <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Roll No</th>
+                                    <th>Branch</th>
+                                    <th>Section</th>
+                                    <th>Present</th>
+                                    <th>Absent</th>
+                                    <th>%</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {attReportDetail.studentSummary.map((s, i) => (
+                                    <tr key={i}>
+                                      <td>{i + 1}</td>
+                                      <td>{s.name}</td>
+                                      <td>{s.rollNumber || '-'}</td>
+                                      <td>{s.branch || '-'}</td>
+                                      <td>{s.section || '-'}</td>
+                                      <td className="att-text-present">{s.presentDays}</td>
+                                      <td className="att-text-absent">{s.absentDays}</td>
+                                      <td>
+                                        <span className={`att-pct-badge ${s.percentage >= 75 ? 'good' : s.percentage >= 50 ? 'warn' : 'bad'}`}>
+                                          {s.percentage}%
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                          {/* Day-wise Details */}
+                          <div className="att-reports-days">
+                            <h4>Day-wise Details</h4>
+                            {attReportDetail.daysData.map(day => (
+                              <div className={`att-reports-day-card ${attReportExpandedDay === day.dayNumber ? 'expanded' : ''}`} key={day.dayNumber}>
+                                <div className="att-reports-day-header" onClick={() => setAttReportExpandedDay(attReportExpandedDay === day.dayNumber ? null : day.dayNumber)}>
+                                  <div className="att-reports-day-info">
+                                    <strong>Day {day.dayNumber}: {day.sectionTitle}</strong>
+                                    <div className="att-reports-day-stats">
+                                      <span className="att-stat-present">✅ {day.presentCount}</span>
+                                      <span className="att-stat-absent">❌ {day.absentCount}</span>
+                                      <span className="att-stat-total">👥 {day.totalStudents}</span>
+                                      {(day.classImage || day.attendanceSheetImage) && <span className="att-has-images">📸 Images</span>}
+                                    </div>
+                                  </div>
+                                  <span className="att-reports-expand-icon">{attReportExpandedDay === day.dayNumber ? '▼' : '▶'}</span>
+                                </div>
+
+                                {attReportExpandedDay === day.dayNumber && (
+                                  <div className="att-reports-day-body">
+                                    {/* Day Images */}
+                                    <div className="att-reports-day-images">
+                                      <div className="att-reports-img-card">
+                                        <div className="att-reports-img-label">📷 Class Image</div>
+                                        {day.classImage ? (
+                                          <img
+                                            src={day.classImage}
+                                            alt={`Day ${day.dayNumber} Class`}
+                                            className="att-reports-img"
+                                            onClick={() => setAttReportImageModal(day.classImage)}
+                                          />
+                                        ) : (
+                                          <div className="att-reports-img-empty">
+                                            <span>🖼️</span>
+                                            <p>No class image</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="att-reports-img-card">
+                                        <div className="att-reports-img-label">📋 Attendance Sheet</div>
+                                        {day.attendanceSheetImage ? (
+                                          <img
+                                            src={day.attendanceSheetImage}
+                                            alt={`Day ${day.dayNumber} Sheet`}
+                                            className="att-reports-img"
+                                            onClick={() => setAttReportImageModal(day.attendanceSheetImage)}
+                                          />
+                                        ) : (
+                                          <div className="att-reports-img-empty">
+                                            <span>🖼️</span>
+                                            <p>No sheet image</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Day Attendance Table */}
+                                    <div className="att-reports-table-wrap">
+                                      <table className="att-reports-table">
+                                        <thead>
+                                          <tr>
+                                            <th>#</th>
+                                            <th>Name</th>
+                                            <th>Roll No</th>
+                                            <th>Branch</th>
+                                            <th>Section</th>
+                                            <th>Status</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {day.students.map((s, i) => (
+                                            <tr key={i}>
+                                              <td>{i + 1}</td>
+                                              <td>{s.name}</td>
+                                              <td>{s.rollNumber || '-'}</td>
+                                              <td>{s.branch || '-'}</td>
+                                              <td>{s.section || '-'}</td>
+                                              <td>
+                                                <span className={`att-status-badge ${s.status}`}>
+                                                  {s.status === 'present' ? '✅ Present' : s.status === 'absent' ? '❌ Absent' : '⚪ Not Marked'}
+                                                </span>
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Full Image Modal */}
+            {attReportImageModal && (
+              <div className="att-img-modal-overlay" onClick={() => setAttReportImageModal(null)}>
+                <div className="att-img-modal-content" onClick={(e) => e.stopPropagation()}>
+                  <button className="att-img-modal-close" onClick={() => setAttReportImageModal(null)}>✕</button>
+                  <img src={attReportImageModal} alt="Full size" />
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

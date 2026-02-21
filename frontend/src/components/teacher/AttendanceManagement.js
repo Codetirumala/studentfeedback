@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../utils/api';
-import { FiCheck, FiX, FiSave } from 'react-icons/fi';
+import { FiCheck, FiX, FiSave, FiCamera, FiFileText, FiUpload, FiImage } from 'react-icons/fi';
 import './AttendanceManagement.css';
 
 const AttendanceManagement = () => {
@@ -13,6 +13,11 @@ const AttendanceManagement = () => {
   const [attendance, setAttendance] = useState({});
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState('all'); // all, absent-only, one-by-one
+  const [dayImages, setDayImages] = useState({ classImage: '', attendanceSheetImage: '' });
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
+  const classImageRef = useRef(null);
+  const sheetImageRef = useRef(null);
 
   useEffect(() => {
     fetchCourses();
@@ -25,6 +30,7 @@ const AttendanceManagement = () => {
   useEffect(() => {
     if (selectedCourse && selectedDay) {
       fetchAttendanceData();
+      fetchDayImages();
     }
   }, [selectedCourse, selectedDay]);
 
@@ -56,6 +62,49 @@ const AttendanceManagement = () => {
 
   const handleStatusChange = (studentId, status) => {
     setAttendance(prev => ({ ...prev, [studentId]: status }));
+  };
+
+  const fetchDayImages = async () => {
+    try {
+      const response = await api.get(`/attendance/day-images/${selectedCourse}/${selectedDay}`);
+      setDayImages({
+        classImage: response.data.classImage || '',
+        attendanceSheetImage: response.data.attendanceSheetImage || ''
+      });
+    } catch (error) {
+      console.error('Error fetching day images:', error);
+      setDayImages({ classImage: '', attendanceSheetImage: '' });
+    }
+  };
+
+  const handleImageUpload = async (type) => {
+    const fileInput = type === 'classImage' ? classImageRef.current : sheetImageRef.current;
+    if (!fileInput || !fileInput.files[0]) return;
+
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append(type, file);
+    formData.append('courseId', selectedCourse);
+    formData.append('dayNumber', selectedDay);
+
+    try {
+      setUploadingImages(true);
+      const response = await api.post('/attendance/day-images/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setDayImages({
+        classImage: response.data.dayImage.classImage || '',
+        attendanceSheetImage: response.data.dayImage.attendanceSheetImage || ''
+      });
+      alert(`${type === 'classImage' ? 'Class photo' : 'Attendance sheet'} uploaded successfully!`);
+      // Reset file input
+      fileInput.value = '';
+    } catch (error) {
+      alert('Failed to upload image. Please try again.');
+      console.error('Image upload error:', error);
+    } finally {
+      setUploadingImages(false);
+    }
   };
 
   const handleMarkAll = (status) => {
@@ -111,6 +160,7 @@ const AttendanceManagement = () => {
               setSelectedDay('');
               setStudents([]);
               setAttendance({});
+              setDayImages({ classImage: '', attendanceSheetImage: '' });
             }}
           >
             <option value="">Select a course</option>
@@ -151,6 +201,113 @@ const AttendanceManagement = () => {
 
       {selectedCourse && selectedDay && (
         <>
+          <div className="day-images-section">
+            <div className="day-images-row">
+              <span className="day-images-title"><FiImage /> Day {selectedDay} Photos</span>
+              <div className="day-images-thumbs">
+                {/* Class Photo Thumb */}
+                <div className="thumb-box">
+                  {dayImages.classImage ? (
+                    <>
+                      <span className="thumb-check"><FiCheck size={12} /></span>
+                      <img
+                        src={dayImages.classImage}
+                        alt="Class"
+                        className="thumb-img"
+                        onClick={() => setPreviewImage({ url: dayImages.classImage, title: 'Class Photo' })}
+                      />
+                    </>
+                  ) : (
+                    <label className="thumb-empty">
+                      <FiCamera size={20} />
+                      <span className="thumb-empty-text">Add</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        ref={classImageRef}
+                        onChange={() => handleImageUpload('classImage')}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                  )}
+                  <span className="thumb-label">Class</span>
+                  {dayImages.classImage && (
+                    <label className="thumb-change">
+                      <FiUpload size={11} />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        ref={classImageRef}
+                        onChange={() => handleImageUpload('classImage')}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {/* Attendance Sheet Thumb */}
+                <div className="thumb-box">
+                  {dayImages.attendanceSheetImage ? (
+                    <>
+                      <span className="thumb-check"><FiCheck size={12} /></span>
+                      <img
+                        src={dayImages.attendanceSheetImage}
+                        alt="Sheet"
+                        className="thumb-img"
+                        onClick={() => setPreviewImage({ url: dayImages.attendanceSheetImage, title: 'Attendance Sheet' })}
+                      />
+                    </>
+                  ) : (
+                    <label className="thumb-empty">
+                      <FiFileText size={20} />
+                      <span className="thumb-empty-text">Add</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        ref={sheetImageRef}
+                        onChange={() => handleImageUpload('attendanceSheetImage')}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                  )}
+                  <span className="thumb-label">Sheet</span>
+                  {dayImages.attendanceSheetImage && (
+                    <label className="thumb-change">
+                      <FiUpload size={11} />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        ref={sheetImageRef}
+                        onChange={() => handleImageUpload('attendanceSheetImage')}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+              {uploadingImages && (
+                <div className="upload-progress-inline">
+                  <div className="spinner"></div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Full Image Preview Modal */}
+          {previewImage && (
+            <div className="image-modal-overlay" onClick={() => setPreviewImage(null)}>
+              <div className="image-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="image-modal-header">
+                  <span>{previewImage.title}</span>
+                  <button onClick={() => setPreviewImage(null)}><FiX /></button>
+                </div>
+                <div className="image-modal-body">
+                  <img src={previewImage.url} alt={previewImage.title} />
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="quick-actions">
             <button className="btn-secondary" onClick={() => handleMarkAll('present')}>
               Mark All Present

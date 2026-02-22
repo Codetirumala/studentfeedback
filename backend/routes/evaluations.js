@@ -37,6 +37,31 @@ router.get('/questions', (req, res) => {
   });
 });
 
+// GET all courses (public - no auth required)
+router.get('/public/courses', async (req, res) => {
+  try {
+    const courses = await Course.find({ status: { $in: ['active', 'completed'] } })
+      .select('title courseCode description status totalDays createdAt')
+      .populate('teacher', 'name')
+      .sort({ createdAt: -1 });
+    
+    // Get evaluation count for each course
+    const coursesWithEvalCount = await Promise.all(
+      courses.map(async (course) => {
+        const evalCount = await Evaluation.countDocuments({ course: course._id });
+        return {
+          ...course.toObject(),
+          evaluationCount: evalCount
+        };
+      })
+    );
+    
+    res.json(coursesWithEvalCount);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Submit overall MCQ evaluation (student) - only after course completed
 router.post('/', auth, isStudent, async (req, res) => {
   try {

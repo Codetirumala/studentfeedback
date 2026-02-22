@@ -170,3 +170,78 @@
   color: #666;
 }
 
+/* Course Tabs */
+.courses-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Poppins', sans-serif;
+}
+
+.tab-btn:hover {
+  border-color: #000;
+  color: #000;
+}
+
+.tab-btn.active {
+  background: #000;
+  border-color: #000;
+  color: white;
+}
+
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.1);
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  min-width: 24px;
+}
+
+.tab-btn.active .tab-count {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Future Course Styling */
+.course-card.future-course {
+  position: relative;
+  border: 2px dashed #17a2b8;
+}
+
+.future-badge {
+  position: absolute;
+  top: -12px;
+  left: 20px;
+  background: #17a2b8;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-badge.upcoming {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+

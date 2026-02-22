@@ -39,6 +39,11 @@ const AdminDashboard = () => {
   const [showDrPicker, setShowDrPicker] = useState(false);
   const [drCourseList, setDrCourseList] = useState([]);
 
+  // Course list modal for overview section
+  const [showCourseListModal, setShowCourseListModal] = useState(false);
+  const [courseListType, setCourseListType] = useState('all'); // 'all', 'active', 'completed', 'draft'
+  const [courseListTitle, setCourseListTitle] = useState('');
+
   // Generic report preview
   const [reportPreview, setReportPreview] = useState(null);
   const [reportPreviewLoading, setReportPreviewLoading] = useState(false);
@@ -160,6 +165,30 @@ const AdminDashboard = () => {
       fetchAllData();
     } catch (error) {
       alert('Failed to delete user');
+    }
+  };
+
+  // Function to open course list modal
+  const openCourseListModal = (type, title) => {
+    setCourseListType(type);
+    setCourseListTitle(title);
+    setShowCourseListModal(true);
+  };
+
+  // Get filtered course list based on type
+  const getFilteredCourseList = () => {
+    if (!courses) return [];
+    switch (courseListType) {
+      case 'active':
+        return courses.filter(c => c.status === 'active');
+      case 'completed':
+        return courses.filter(c => c.status === 'completed');
+      case 'draft':
+        return courses.filter(c => c.status === 'draft');
+      case 'enrolled':
+        return courses.filter(c => c.enrolledCount > 0);
+      default:
+        return courses;
     }
   };
 
@@ -628,6 +657,57 @@ const AdminDashboard = () => {
                 <div>
                   <h4>{analytics.feedback.totalRatings}</h4>
                   <p>Feedback Submitted</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Course Lists Section */}
+            <div className="course-lists-section">
+              <h2>📚 Course Categories</h2>
+              <div className="course-category-cards">
+                <div 
+                  className="course-category-card enrolled"
+                  onClick={() => openCourseListModal('enrolled', 'Courses with Enrollments')}
+                >
+                  <div className="cc-icon">📝</div>
+                  <div className="cc-content">
+                    <h4>{courses?.filter(c => c.enrolledCount > 0).length || 0}</h4>
+                    <p>With Enrollments</p>
+                  </div>
+                  <span className="cc-arrow">→</span>
+                </div>
+                <div 
+                  className="course-category-card active"
+                  onClick={() => openCourseListModal('active', 'Active Courses')}
+                >
+                  <div className="cc-icon">🟢</div>
+                  <div className="cc-content">
+                    <h4>{courses?.filter(c => c.status === 'active').length || 0}</h4>
+                    <p>Active Courses</p>
+                  </div>
+                  <span className="cc-arrow">→</span>
+                </div>
+                <div 
+                  className="course-category-card completed"
+                  onClick={() => openCourseListModal('completed', 'Completed Courses')}
+                >
+                  <div className="cc-icon">✅</div>
+                  <div className="cc-content">
+                    <h4>{courses?.filter(c => c.status === 'completed').length || 0}</h4>
+                    <p>Completed Courses</p>
+                  </div>
+                  <span className="cc-arrow">→</span>
+                </div>
+                <div 
+                  className="course-category-card draft"
+                  onClick={() => openCourseListModal('draft', 'Draft Courses')}
+                >
+                  <div className="cc-icon">📄</div>
+                  <div className="cc-content">
+                    <h4>{courses?.filter(c => c.status === 'draft').length || 0}</h4>
+                    <p>Draft Courses</p>
+                  </div>
+                  <span className="cc-arrow">→</span>
                 </div>
               </div>
             </div>
@@ -1522,6 +1602,59 @@ const AdminDashboard = () => {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Course List Modal */}
+        {showCourseListModal && (
+          <div className="course-list-modal-overlay" onClick={() => setShowCourseListModal(false)}>
+            <div className="course-list-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="clm-header">
+                <h2>{courseListTitle}</h2>
+                <button className="clm-close" onClick={() => setShowCourseListModal(false)}>✕</button>
+              </div>
+              <div className="clm-body">
+                {getFilteredCourseList().length === 0 ? (
+                  <div className="clm-empty">No courses found in this category</div>
+                ) : (
+                  <div className="clm-list">
+                    {getFilteredCourseList().map((course) => (
+                      <div key={course._id} className="clm-item">
+                        <div className="clm-item-main">
+                          <h4>{course.title}</h4>
+                          <span className="clm-code">{course.courseCode}</span>
+                        </div>
+                        <div className="clm-item-meta">
+                          <span className="clm-teacher">
+                            👨‍🏫 {course.teacher?.name || 'Unknown'}
+                          </span>
+                          <span className="clm-days">
+                            📅 {course.totalDays} days
+                          </span>
+                          <span className="clm-enrolled">
+                            👥 {course.enrolledCount || 0} enrolled
+                          </span>
+                          <span className={`clm-status ${course.status}`}>
+                            {course.status}
+                          </span>
+                        </div>
+                        <div className="clm-item-progress">
+                          <div className="clm-progress-bar">
+                            <div 
+                              className="clm-progress-fill" 
+                              style={{width: `${course.sections ? (course.sections.filter(s => s.completed).length / course.sections.length) * 100 : 0}%`}}
+                            ></div>
+                          </div>
+                          <span className="clm-progress-text">
+                            {course.sections ? course.sections.filter(s => s.completed).length : 0}/{course.sections?.length || 0} days completed
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </main>

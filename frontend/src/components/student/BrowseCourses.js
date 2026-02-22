@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../utils/api';
-import { FiBook, FiUser } from 'react-icons/fi';
+import { FiBook, FiUser, FiCalendar, FiClock } from 'react-icons/fi';
 import './BrowseCourses.css';
 
 const BrowseCourses = () => {
   const [courses, setCourses] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('open');
 
   useEffect(() => {
     fetchData();
@@ -46,6 +47,97 @@ const BrowseCourses = () => {
     return enrollment?.status;
   };
 
+  // Separate courses into open and future enrollment
+  const now = new Date();
+  
+  const openCourses = courses.filter(course => {
+    // Open courses: enrollmentEnabled is true AND startDate is today or in the past
+    if (!course.enrollmentEnabled) return false;
+    const startDate = course.startDate ? new Date(course.startDate) : now;
+    return startDate <= now;
+  });
+
+  const futureCourses = courses.filter(course => {
+    // Future courses: enrollmentEnabled is true BUT startDate is in the future
+    if (!course.enrollmentEnabled) return false;
+    const startDate = course.startDate ? new Date(course.startDate) : now;
+    return startDate > now;
+  });
+
+  const displayCourses = activeTab === 'open' ? openCourses : futureCourses;
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'TBD';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const getTimeUntilStart = (dateString) => {
+    if (!dateString) return '';
+    const startDate = new Date(dateString);
+    const diffTime = startDate - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays === 1) return 'Starts tomorrow';
+    if (diffDays <= 7) return `Starts in ${diffDays} days`;
+    if (diffDays <= 30) return `Starts in ${Math.ceil(diffDays / 7)} weeks`;
+    return `Starts on ${formatDate(dateString)}`;
+  };
+
+  const renderCourseCard = (course) => {
+    const enrolled = isEnrolled(course._id);
+    const status = getEnrollmentStatus(course._id);
+    const isFuture = activeTab === 'future';
+
+    return (
+      <div key={course._id} className={`course-card ${isFuture ? 'future-course' : ''}`}>
+        {isFuture && (
+          <div className="future-badge">
+            <FiClock /> {getTimeUntilStart(course.startDate)}
+          </div>
+        )}
+        <div className="course-header">
+          <h3>{course.title}</h3>
+          <span className="course-code">{course.courseCode}</span>
+        </div>
+        <div className="course-teacher">
+          <FiUser /> {course.teacher?.name || 'Teacher'}
+        </div>
+        <p className="course-description">
+          {course.description || 'No description available.'}
+        </p>
+        <div className="course-info">
+          <span><FiBook /> {course.totalDays} Days</span>
+          <span>{course.sections?.length || 0} Sections</span>
+          {course.startDate && (
+            <span><FiCalendar /> {formatDate(course.startDate)}</span>
+          )}
+        </div>
+        <div className="course-actions">
+          {enrolled ? (
+            <div className="enrollment-status">
+              <span className={`status-badge ${status}`}>
+                {status === 'pending' ? 'Pending Approval' : status === 'approved' ? 'Enrolled' : status}
+              </span>
+            </div>
+          ) : isFuture ? (
+            <div className="enrollment-status">
+              <span className="status-badge upcoming">
+                Opens on {formatDate(course.startDate)}
+              </span>
+            </div>
+          ) : (
+            <button
+              className="btn-enroll"
+              onClick={() => handleEnroll(course._id)}
+            >
+              Enroll Now
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="browse-courses">
       <div className="page-header">
@@ -53,57 +145,32 @@ const BrowseCourses = () => {
         <p>Discover and enroll in available courses.</p>
       </div>
 
-      {courses.length === 0 ? (
+      <div className="courses-tabs">
+        <button 
+          className={`tab-btn ${activeTab === 'open' ? 'active' : ''}`}
+          onClick={() => setActiveTab('open')}
+        >
+          Open for Enrollment
+          <span className="tab-count">{openCourses.length}</span>
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'future' ? 'active' : ''}`}
+          onClick={() => setActiveTab('future')}
+        >
+          Future Courses
+          <span className="tab-count">{futureCourses.length}</span>
+        </button>
+      </div>
+
+      {displayCourses.length === 0 ? (
         <div className="empty-state">
-          <p>No courses available at the moment.</p>
+          <p>{activeTab === 'open' 
+            ? 'No courses currently open for enrollment.' 
+            : 'No upcoming courses scheduled.'}</p>
         </div>
       ) : (
         <div className="courses-grid">
-          {courses.map((course) => {
-            const enrolled = isEnrolled(course._id);
-            const status = getEnrollmentStatus(course._id);
-
-            return (
-              <div key={course._id} className="course-card">
-                <div className="course-header">
-                  <h3>{course.title}</h3>
-                  <span className="course-code">{course.courseCode}</span>
-                </div>
-                <div className="course-teacher">
-                  <FiUser /> {course.teacher?.name || 'Teacher'}
-                </div>
-                <p className="course-description">
-                  {course.description || 'No description available.'}
-                </p>
-                <div className="course-info">
-                  <span><FiBook /> {course.totalDays} Days</span>
-                  <span>{course.sections?.length || 0} Sections</span>
-                </div>
-                <div className="course-actions">
-                  {enrolled ? (
-                    <div className="enrollment-status">
-                      <span className={`status-badge ${status}`}>
-                        {status === 'pending' ? 'Pending Approval' : status === 'approved' ? 'Enrolled' : status}
-                      </span>
-                    </div>
-                  ) : !course.enrollmentEnabled ? (
-                    <div className="enrollment-status">
-                      <span className="status-badge disabled">
-                        Enrollment Closed
-                      </span>
-                    </div>
-                  ) : (
-                    <button
-                      className="btn-enroll"
-                      onClick={() => handleEnroll(course._id)}
-                    >
-                      Enroll Now
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {displayCourses.map(course => renderCourseCard(course))}
         </div>
       )}
     </div>

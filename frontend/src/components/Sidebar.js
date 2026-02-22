@@ -32,7 +32,6 @@ const Sidebar = ({ isTeacher = false }) => {
     { path: '/teacher/enrollments', label: 'Enrollments', icon: FiUsers },
     { path: '/teacher/attendance', label: 'Attendance', icon: FiCheckSquare },
     { path: '/teacher/analytics', label: 'Program Analytics', icon: FiBarChart2 },
-    { path: '/teacher/reports', label: 'Reports', icon: FiFileText },
     { path: '/teacher/timetable', label: 'Timetable', icon: FiClock },
   ];
 

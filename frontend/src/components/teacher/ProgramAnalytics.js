@@ -72,7 +72,7 @@ const ProgramAnalytics = () => {
                   <h3>{course.title}</h3>
                   <div className="course-metrics">
                     <span>Students: {course.enrolledCount || 0}</span>
-                    <span>Completion: 75%</span>
+                    <span>Day Completion: {course.dayCompletionRate || 0}% ({course.completedDays || 0}/{course.totalDays || 0} days)</span>
                     <span>Attendance: {dashboardData.avgAttendance}%</span>
                     <span className={`status-badge ${course.status}`}>{course.status}</span>
                   </div>
@@ -118,8 +118,9 @@ const ProgramAnalytics = () => {
                   <h3>{item.course.title}</h3>
                   <div className="metric-values">
                     <div className="metric-item">
-                      <span>Completion Rate</span>
+                      <span>Day Completion</span>
                       <span className="value">{item.completionRate}%</span>
+                      <span className="sub-value">{item.completedDays || 0}/{item.totalDays || 0} days</span>
                     </div>
                     <div className="metric-item">
                       <span>Student Count</span>

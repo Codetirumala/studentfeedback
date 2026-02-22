@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
-import { FiBook, FiClock, FiCheckCircle, FiUserCheck, FiAlertCircle } from 'react-icons/fi';
+import { FiBook, FiClock, FiCheckCircle, FiUserCheck, FiAlertCircle, FiX, FiArrowRight } from 'react-icons/fi';
 import './StudentDashboard.css';
 
 const StudentDashboardHome = () => {
@@ -9,6 +9,8 @@ const StudentDashboardHome = () => {
   const [courses, setCourses] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedFilter, setSelectedFilter] = useState(null);
+  const [showFilterModal, setShowFilterModal] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,33 +44,94 @@ const StudentDashboardHome = () => {
       title: 'Enrolled Courses',
       value: stats?.totalEnrolled || 0,
       icon: FiBook,
-      color: '#007bff'
+      color: '#007bff',
+      filterKey: 'enrolled',
+      clickable: true
     },
     {
       title: 'In Progress',
       value: stats?.inProgress || 0,
       icon: FiClock,
-      color: '#ffc107'
+      color: '#ffc107',
+      filterKey: 'in-progress',
+      clickable: true
     },
     {
       title: 'Completed',
       value: stats?.completed || 0,
       icon: FiCheckCircle,
-      color: '#28a745'
+      color: '#28a745',
+      filterKey: 'completed',
+      clickable: true
     },
     {
       title: 'Attendance',
       value: `${stats?.overallAttendance || 0}%`,
       icon: FiUserCheck,
-      color: '#17a2b8'
+      color: '#17a2b8',
+      filterKey: 'attendance',
+      clickable: false
     },
     {
       title: 'Pending Approvals',
       value: stats?.pendingApprovals || 0,
       icon: FiAlertCircle,
-      color: '#dc3545'
+      color: '#dc3545',
+      filterKey: 'pending',
+      clickable: true
     },
   ];
+
+  // Handle summary card click
+  const handleCardClick = (card) => {
+    if (!card.clickable) return;
+    setSelectedFilter(card.filterKey);
+    setShowFilterModal(true);
+  };
+
+  // Get filtered courses based on selected filter
+  const getFilteredCourses = () => {
+    if (!stats?.courses) return [];
+    
+    switch (selectedFilter) {
+      case 'enrolled':
+        // All enrolled courses
+        return stats.courses.filter(c => c && c.course);
+      case 'in-progress':
+        // Courses that are not completed (progress < 100)
+        return stats.courses.filter(c => 
+          c && c.course && c.enrollment && c.enrollment.progress < 100
+        );
+      case 'completed':
+        // Courses with progress = 100
+        return stats.courses.filter(c => 
+          c && c.course && c.enrollment && c.enrollment.progress >= 100
+        );
+      case 'pending':
+        // Pending approval courses (enrollment status = pending)
+        return stats.courses.filter(c => 
+          c && c.course && c.enrollment && c.enrollment.status === 'pending'
+        );
+      default:
+        return [];
+    }
+  };
+
+  // Get title for the filter modal
+  const getFilterTitle = () => {
+    switch (selectedFilter) {
+      case 'enrolled':
+        return 'All Enrolled Courses';
+      case 'in-progress':
+        return 'Courses In Progress';
+      case 'completed':
+        return 'Completed Courses';
+      case 'pending':
+        return 'Pending Approval Courses';
+      default:
+        return 'Courses';
+    }
+  };
 
   return (
     <div className="student-dashboard">
@@ -86,7 +149,12 @@ const StudentDashboardHome = () => {
         {summaryCards.map((card, index) => {
           const Icon = card.icon;
           return (
-            <div key={index} className="summary-card">
+            <div 
+              key={index} 
+              className={`summary-card ${card.clickable ? 'clickable' : ''}`}
+              onClick={() => handleCardClick(card)}
+              title={card.clickable ? `Click to view ${card.title}` : ''}
+            >
               <div className="card-icon" style={{ backgroundColor: `${card.color}20`, color: card.color }}>
                 <Icon />
               </div>
@@ -94,10 +162,66 @@ const StudentDashboardHome = () => {
                 <h3>{card.value}</h3>
                 <p>{card.title}</p>
               </div>
+              {card.clickable && <FiArrowRight className="card-arrow" />}
             </div>
           );
         })}
       </div>
+
+      {/* Filter Modal */}
+      {showFilterModal && (
+        <div className="filter-modal-overlay" onClick={() => setShowFilterModal(false)}>
+          <div className="filter-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="filter-modal-header">
+              <h2>{getFilterTitle()}</h2>
+              <button className="close-btn" onClick={() => setShowFilterModal(false)}>
+                <FiX />
+              </button>
+            </div>
+            <div className="filter-modal-body">
+              {getFilteredCourses().length === 0 ? (
+                <div className="empty-state">No courses found</div>
+              ) : (
+                <div className="filtered-courses-list">
+                  {getFilteredCourses().map((item) => {
+                    const course = item.course;
+                    const enrollment = item.enrollment;
+                    if (!course) return null;
+                    
+                    return (
+                      <div 
+                        key={course._id} 
+                        className="filtered-course-item"
+                        onClick={() => {
+                          setShowFilterModal(false);
+                          navigate(`/student/courses/${course._id}`);
+                        }}
+                      >
+                        <div className="filtered-course-info">
+                          <h4>{course.title}</h4>
+                          <p>{course.description?.substring(0, 100) || 'No description'}...</p>
+                          <div className="filtered-course-meta">
+                            <span><FiBook /> {course.totalDays || 0} days</span>
+                            {enrollment && (
+                              <>
+                                <span><FiCheckCircle /> {enrollment.progress || 0}% complete</span>
+                                <span className={`status-tag ${enrollment.status}`}>
+                                  {enrollment.status}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <FiArrowRight className="view-arrow" />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="dashboard-sections">
         <div className="section active-courses">

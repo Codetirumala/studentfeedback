@@ -38,11 +38,33 @@ router.get('/dashboard', auth, isTeacher, async (req, res) => {
       ? Math.round((presentCount / totalAttendanceRecords) * 100)
       : 0;
 
-    // Calculate completion rate
-    const completedCourses = courses.filter(c => c.status === 'completed').length;
-    const completionRate = totalCourses > 0 
-      ? Math.round((completedCourses / totalCourses) * 100)
+    // Calculate completion rate based on day-to-day evaluation completion
+    // This is calculated as: (total completed days / total days) * 100
+    let totalDays = 0;
+    let completedDays = 0;
+    
+    courses.forEach(course => {
+      if (course.sections && course.sections.length > 0) {
+        totalDays += course.sections.length;
+        completedDays += course.sections.filter(s => s.completed).length;
+      }
+    });
+    
+    const completionRate = totalDays > 0 
+      ? Math.round((completedDays / totalDays) * 100)
       : 0;
+
+    // Get active courses list
+    const activeCoursesData = courses
+      .filter(c => c.status === 'active')
+      .map(c => ({
+        _id: c._id,
+        title: c.title,
+        courseCode: c.courseCode,
+        totalDays: c.totalDays,
+        completedDays: c.sections ? c.sections.filter(s => s.completed).length : 0,
+        enrolledCount: approvedEnrollments.filter(e => e.course.toString() === c._id.toString()).length
+      }));
 
     res.json({
       totalCourses,
@@ -51,11 +73,20 @@ router.get('/dashboard', auth, isTeacher, async (req, res) => {
       pendingRequests,
       avgAttendance,
       completionRate,
-      courses: courses.map(c => ({
-        ...c.toObject(),
-        enrolledCount: approvedEnrollments.filter(e => e.course.toString() === c._id.toString()).length,
-        pendingCount: pendingEnrollments.filter(e => e.course.toString() === c._id.toString()).length
-      }))
+      totalDays,
+      completedDays,
+      activeCoursesData,
+      courses: courses.map(c => {
+        const courseCompletedDays = c.sections ? c.sections.filter(s => s.completed).length : 0;
+        const courseTotalDays = c.sections ? c.sections.length : 0;
+        return {
+          ...c.toObject(),
+          enrolledCount: approvedEnrollments.filter(e => e.course.toString() === c._id.toString()).length,
+          pendingCount: pendingEnrollments.filter(e => e.course.toString() === c._id.toString()).length,
+          completedDays: courseCompletedDays,
+          dayCompletionRate: courseTotalDays > 0 ? Math.round((courseCompletedDays / courseTotalDays) * 100) : 0
+        };
+      })
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -134,15 +165,19 @@ router.get('/effectiveness', auth, isTeacher, async (req, res) => {
         f.course.toString() === course._id.toString()
       );
 
-      const completedCount = courseEnrollments.filter(e => e.progress === 100).length;
-      const completionRate = courseEnrollments.length > 0
-        ? Math.round((completedCount / courseEnrollments.length) * 100)
+      // Calculate completion rate based on day-to-day completion
+      const completedDays = course.sections ? course.sections.filter(s => s.completed).length : 0;
+      const totalDays = course.sections ? course.sections.length : 0;
+      const completionRate = totalDays > 0
+        ? Math.round((completedDays / totalDays) * 100)
         : 0;
 
       return {
         course,
         studentCount: courseEnrollments.length,
         completionRate,
+        completedDays,
+        totalDays,
         averageRating: 4.5, // Placeholder
         engagementScore: 85, // Placeholder
         feedbackCount: courseFeedbacks.length

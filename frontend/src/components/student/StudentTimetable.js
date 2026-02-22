@@ -15,9 +15,35 @@ const StudentTimetable = () => {
   const fetchCourses = async () => {
     try {
       const response = await api.get('/courses/my-courses');
-      setCourses(response.data || []);
-      if (response.data && response.data.length > 0) {
-        setSelectedCourse(response.data[0]._id);
+      const allCourses = response.data || [];
+      
+      // Filter out past/completed courses
+      const now = new Date();
+      const activeCourses = allCourses.filter(course => {
+        // If course has an endDate and it's passed, hide it
+        if (course.endDate) {
+          const endDate = new Date(course.endDate);
+          if (endDate < now) return false;
+        }
+        
+        // If course is marked as completed, hide it
+        if (course.status === 'completed') return false;
+        
+        // Calculate if all days have passed based on startDate + totalDays
+        if (course.startDate && course.totalDays) {
+          const startDate = new Date(course.startDate);
+          const courseEndDate = new Date(startDate);
+          courseEndDate.setDate(courseEndDate.getDate() + course.totalDays);
+          if (courseEndDate < now) return false;
+        }
+        
+        return true;
+      });
+      
+      setCourses(activeCourses);
+      
+      if (activeCourses.length > 0) {
+        setSelectedCourse(activeCourses[0]._id);
       }
     } catch (error) {
       console.error('Error fetching courses:', error);

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
-import { FiBook, FiUsers, FiAlertCircle, FiUserCheck, FiCheckCircle, FiBarChart2, FiPlus, FiClock, FiTrendingUp } from 'react-icons/fi';
+import { FiBook, FiUsers, FiAlertCircle, FiUserCheck, FiCheckCircle, FiBarChart2, FiPlus, FiClock, FiTrendingUp, FiActivity } from 'react-icons/fi';
 import './TeacherDashboard.css';
 
 const TeacherDashboardHome = () => {
   const [stats, setStats] = useState(null);
   const [courses, setCourses] = useState([]);
+  const [activeCoursesList, setActiveCoursesList] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -19,6 +20,7 @@ const TeacherDashboardHome = () => {
       const response = await api.get('/analytics/dashboard');
       setStats(response.data);
       setCourses(response.data.courses || []);
+      setActiveCoursesList(response.data.activeCoursesData || []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -63,8 +65,9 @@ const TeacherDashboardHome = () => {
       bg: '#8b5cf620'
     },
     {
-      title: 'Completion Rate',
+      title: 'Day Completion',
       value: `${stats?.completionRate || 0}%`,
+      subtext: stats?.totalDays > 0 ? `${stats?.completedDays || 0}/${stats?.totalDays} days` : null,
       icon: FiTrendingUp,
       color: '#10b981',
       bg: '#10b98120'
@@ -92,11 +95,51 @@ const TeacherDashboardHome = () => {
               <div className="stat-details">
                 <h3>{card.value}</h3>
                 <p>{card.title}</p>
+                {card.subtext && <span className="stat-subtext">{card.subtext}</span>}
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Active Courses List */}
+      {activeCoursesList.length > 0 && (
+        <div className="dashboard-card active-courses-section">
+          <div className="card-header">
+            <h2><FiActivity style={{ marginRight: '8px' }} /> Active Courses</h2>
+            <span className="course-count">{activeCoursesList.length} courses</span>
+          </div>
+          <div className="active-courses-list">
+            {activeCoursesList.map((course) => (
+              <div 
+                key={course._id} 
+                className="active-course-item"
+                onClick={() => navigate(`/teacher/courses/${course._id}`)}
+              >
+                <div className="active-course-info">
+                  <h4>{course.title}</h4>
+                  <span className="course-code-small">{course.courseCode}</span>
+                </div>
+                <div className="active-course-progress">
+                  <div className="progress-info">
+                    <span>{course.completedDays}/{course.totalDays} days</span>
+                    <span>{course.totalDays > 0 ? Math.round((course.completedDays / course.totalDays) * 100) : 0}%</span>
+                  </div>
+                  <div className="progress-bar-small">
+                    <div 
+                      className="progress-fill-small" 
+                      style={{ width: `${course.totalDays > 0 ? (course.completedDays / course.totalDays) * 100 : 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div className="active-course-students">
+                  <FiUsers /> {course.enrolledCount}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Courses Overview */}
       <div className="dashboard-card courses-full-width">
@@ -135,10 +178,9 @@ const TeacherDashboardHome = () => {
                     <span className="metric-value">{course.pendingCount || 0}</span>
                   </div>
                   <div className="metric">
-                    <span className="metric-label">Completion</span>
+                    <span className="metric-label">Day Progress</span>
                     <span className="metric-value">
-                      {course.completedCount ? 
-                        Math.round((course.completedCount / course.enrolledCount) * 100) : 0}%
+                      {course.dayCompletionRate || 0}%
                     </span>
                   </div>
                 </div>

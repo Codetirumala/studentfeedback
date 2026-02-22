@@ -382,3 +382,113 @@ textarea:disabled {
   background: #f8fafc;
   cursor: wait;
 }
+
+/* Small AI Generate Button for Sections */
+.ai-generate-btn-small {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: auto;
+}
+
+.ai-generate-btn-small:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(139, 92, 246, 0.4);
+}
+
+.ai-generate-btn-small:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-generate-btn-small svg {
+  font-size: 12px;
+}
+
+/* AI Generate Course Description Section */
+.ai-generate-section {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  border: 2px dashed #8b5cf6;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.ai-generate-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.ai-info-icon {
+  font-size: 32px;
+  color: #8b5cf6;
+  flex-shrink: 0;
+}
+
+.ai-generate-info h4 {
+  font-size: 16px;
+  color: #1e1b4b;
+  margin: 0 0 6px;
+}
+
+.ai-generate-info p {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.btn-generate-description {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 28px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Poppins', sans-serif;
+}
+
+.btn-generate-description:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+}
+
+.btn-generate-description:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-generate-description svg {
+  font-size: 18px;
+}
+
+.btn-generate-description .spinning {
+  animation: spin 1s linear infinite;
+}
+
+.ai-hint {
+  font-size: 12px;
+  color: #9ca3af;
+  margin: 12px 0 0;
+  font-style: italic;
+}
+

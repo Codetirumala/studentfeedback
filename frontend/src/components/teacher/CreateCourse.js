@@ -15,25 +15,41 @@ const CreateCourse = () => {
   const [expandedDays, setExpandedDays] = useState({});
   const [loading, setLoading] = useState(false);
   const [generatingDescription, setGeneratingDescription] = useState(false);
+  const [generatingSectionDesc, setGeneratingSectionDesc] = useState({});
   const navigate = useNavigate();
 
-  // Generate description using Puter.js (Free Gemini API)
-  const generateDescription = async (title) => {
-    if (!title || title.trim().length < 3) return;
-    
+  // Generate course description based on all day titles/sections
+  const generateCourseDescription = async () => {
     setGeneratingDescription(true);
     try {
-      // Using Puter.js for free Gemini access
-      const prompt = `Generate a professional and engaging course description for a training program titled "${title}". 
+      // Collect all section headings from all days
+      const allTopics = [];
+      formData.sections.forEach((day, index) => {
+        const dayTopics = day.sections.map(s => s.heading).filter(h => h);
+        if (dayTopics.length > 0) {
+          allTopics.push(`Day ${index + 1}: ${dayTopics.join(', ')}`);
+        }
+      });
+
+      if (allTopics.length === 0) {
+        alert('Please add section headings to at least one day first.');
+        setGeneratingDescription(false);
+        return;
+      }
+
+      const prompt = `Generate a professional course description for a training program titled "${formData.title}".
+
+The course covers the following topics:
+${allTopics.join('\n')}
 
 The description should be:
-- 2-3 paragraphs (around 100-150 words)
-- Professional and informative
-- Highlight what students will learn
-- Mention key skills they will gain
-- Be suitable for a corporate training environment
+- 2-3 paragraphs (around 150-200 words)
+- Professional and engaging
+- Summarize what students will learn across all days
+- Highlight key skills and knowledge they will gain
+- Suitable for corporate training
 
-Only return the description text, no headings or bullet points.`;
+Only return the description text, no headings or formatting.`;
 
       // eslint-disable-next-line no-undef
       const response = await puter.ai.chat(prompt, {
@@ -51,18 +67,56 @@ Only return the description text, no headings or bullet points.`;
       }
     } catch (error) {
       console.error('Error generating description:', error);
-      // Fallback: show error message
       alert('AI generation failed. Please enter description manually.');
     } finally {
       setGeneratingDescription(false);
     }
   };
 
-  // Handle title blur to trigger AI generation
-  const handleTitleBlur = () => {
-    if (formData.title && formData.title.trim().length >= 3 && !formData.description) {
-      generateDescription(formData.title);
+  // Generate description for individual section based on its heading
+  const generateSectionDescription = async (dayIndex, sectionIndex, heading) => {
+    if (!heading || heading.trim().length < 3) {
+      alert('Please enter a section heading first.');
+      return;
     }
+
+    const key = `${dayIndex}-${sectionIndex}`;
+    setGeneratingSectionDesc(prev => ({ ...prev, [key]: true }));
+    
+    try {
+      const prompt = `Generate a brief professional description (2-3 sentences, around 40-60 words) for a training section titled "${heading}".
+
+The description should:
+- Explain what will be covered
+- Be suitable for a corporate training environment
+- Be informative and engaging
+
+Only return the description text.`;
+
+      // eslint-disable-next-line no-undef
+      const response = await puter.ai.chat(prompt, {
+        model: 'gemini-2.0-flash'
+      });
+      
+      if (response) {
+        const generatedText = typeof response === 'string' ? response.trim() : response.message?.content?.trim() || '';
+        if (generatedText) {
+          const sections = [...formData.sections];
+          sections[dayIndex].sections[sectionIndex].description = generatedText;
+          setFormData(prev => ({ ...prev, sections }));
+        }
+      }
+    } catch (error) {
+      console.error('Error generating section description:', error);
+    } finally {
+      setGeneratingSectionDesc(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  // Check if all days have at least one section heading
+  const hasAllDayTitles = () => {
+    return formData.sections.length > 0 && 
+           formData.sections.every(day => day.sections.some(s => s.heading && s.heading.trim()));
   };
 
   const handleChange = (e) => {
@@ -209,8 +263,7 @@ Only return the description text, no headings or bullet points.`;
               name="title"
               value={formData.title}
               onChange={handleChange}
-              onBlur={handleTitleBlur}
-              placeholder="Enter course title (AI will generate description)"
+              placeholder="Enter course title"
               required
             />
           </div>
@@ -222,24 +275,18 @@ Only return the description text, no headings or bullet points.`;
                   <FiZap className="ai-icon spinning" /> AI Generating...
                 </span>
               )}
-              {!generatingDescription && formData.title && !formData.description && (
-                <button 
-                  type="button" 
-                  className="ai-generate-btn"
-                  onClick={() => generateDescription(formData.title)}
-                >
-                  <FiZap /> Generate with AI
-                </button>
-              )}
             </label>
             <textarea
               name="description"
               value={formData.description}
               onChange={handleChange}
               rows="4"
-              placeholder={generatingDescription ? "Generating description..." : "Course description (auto-generated or enter manually)"}
+              placeholder={generatingDescription ? "Generating description from day topics..." : "Course description (will be auto-generated based on day topics)"}
               disabled={generatingDescription}
             />
+            <p className="form-hint">
+              💡 Add section headings for each day below, then click "Generate Course Description" to auto-generate based on all topics.
+            </p>
           </div>
           <div className="form-group">
             <label>Start Date *</label>
@@ -318,12 +365,29 @@ Only return the description text, no headings or bullet points.`;
                           </div>
 
                           <div className="form-group">
-                            <label>Section Description</label>
+                            <label>
+                              Section Description
+                              {generatingSectionDesc[`${dayIndex}-${sectionIndex}`] ? (
+                                <span className="ai-generating">
+                                  <FiZap className="ai-icon spinning" /> Generating...
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="ai-generate-btn-small"
+                                  onClick={() => generateSectionDescription(dayIndex, sectionIndex, section.heading)}
+                                  disabled={!section.heading}
+                                >
+                                  <FiZap /> Generate
+                                </button>
+                              )}
+                            </label>
                             <textarea
                               value={section.description}
                               onChange={(e) => updateSection(dayIndex, sectionIndex, 'description', e.target.value)}
                               rows="2"
-                              placeholder="Brief description of this section"
+                              placeholder="Brief description (click Generate after entering heading)"
+                              disabled={generatingSectionDesc[`${dayIndex}-${sectionIndex}`]}
                             />
                           </div>
 
@@ -388,6 +452,38 @@ Only return the description text, no headings or bullet points.`;
             ))}
           </div>
         </div>
+
+        {/* Generate Course Description Button */}
+        {formData.sections.length > 0 && (
+          <div className="ai-generate-section">
+            <div className="ai-generate-info">
+              <FiZap className="ai-info-icon" />
+              <div>
+                <h4>Generate Course Description with AI</h4>
+                <p>Based on all the section headings you've added, AI will create a comprehensive course description.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn-generate-description"
+              onClick={generateCourseDescription}
+              disabled={generatingDescription || !hasAllDayTitles()}
+            >
+              {generatingDescription ? (
+                <>
+                  <FiZap className="spinning" /> Generating...
+                </>
+              ) : (
+                <>
+                  <FiZap /> Generate Course Description
+                </>
+              )}
+            </button>
+            {!hasAllDayTitles() && (
+              <p className="ai-hint">Add at least one section heading to each day to enable this feature.</p>
+            )}
+          </div>
+        )}
 
         <div className="form-actions">
           <button type="button" className="btn-secondary" onClick={() => navigate('/teacher/courses')}>

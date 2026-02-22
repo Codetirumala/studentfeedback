@@ -2067,3 +2067,281 @@
     flex-wrap: wrap;
   }
 }
+
+/* Course Lists Section */
+.course-lists-section {
+  margin-top: 30px;
+  background: white;
+  padding: 25px;
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.course-lists-section h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0 0 20px 0;
+}
+
+.course-category-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+}
+
+.course-category-card {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.course-category-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.course-category-card.enrolled:hover {
+  border-color: #6366f1;
+  background: #f5f3ff;
+}
+
+.course-category-card.active:hover {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+.course-category-card.completed:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.course-category-card.draft:hover {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.cc-icon {
+  font-size: 28px;
+}
+
+.cc-content h4 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0;
+}
+
+.cc-content p {
+  font-size: 13px;
+  color: #666;
+  margin: 4px 0 0;
+}
+
+.cc-arrow {
+  margin-left: auto;
+  font-size: 20px;
+  color: #999;
+  transition: transform 0.3s;
+}
+
+.course-category-card:hover .cc-arrow {
+  transform: translateX(5px);
+  color: #333;
+}
+
+/* Course List Modal */
+.course-list-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.course-list-modal {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 800px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.3s ease;
+}
+
+.clm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  border-bottom: 1px solid #eee;
+}
+
+.clm-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0;
+}
+
+.clm-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.clm-close:hover {
+  color: #000;
+}
+
+.clm-body {
+  padding: 20px 25px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.clm-empty {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-size: 16px;
+}
+
+.clm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.clm-item {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 18px;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+}
+
+.clm-item:hover {
+  background: white;
+  border-color: #007bff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.clm-item-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.clm-item-main h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0;
+}
+
+.clm-code {
+  font-size: 12px;
+  color: #666;
+  background: #e9ecef;
+  padding: 3px 10px;
+  border-radius: 4px;
+}
+
+.clm-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 12px;
+}
+
+.clm-item-meta span {
+  font-size: 13px;
+  color: #666;
+}
+
+.clm-status {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.clm-status.active {
+  background: #d4edda;
+  color: #155724;
+}
+
+.clm-status.completed {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.clm-status.draft {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.clm-item-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.clm-progress-bar {
+  flex: 1;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.clm-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.clm-progress-text {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .course-category-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .clm-item-meta {
+    flex-direction: column;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .course-category-cards {
+    grid-template-columns: 1fr;
+  }
+}

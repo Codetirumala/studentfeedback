@@ -11,6 +11,7 @@ const EditCourse = () => {
     description: '',
     totalDays: 1,
     startDate: new Date().toISOString().split('T')[0],
+    endDate: '',
     sections: []
   });
   const [expandedDays, setExpandedDays] = useState({});
@@ -25,6 +26,7 @@ const EditCourse = () => {
 
         // normalize startDate to yyyy-mm-dd
         const startDate = course.startDate ? new Date(course.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+        const endDate = course.endDate ? new Date(course.endDate).toISOString().split('T')[0] : '';
 
         // ensure day.date are plain dates for display
         const sections = (course.sections || []).map(day => ({
@@ -42,6 +44,7 @@ const EditCourse = () => {
           description: course.description || '',
           totalDays: course.totalDays || sections.length || 1,
           startDate,
+          endDate,
           sections
         });
       } catch (err) {
@@ -129,6 +132,7 @@ const EditCourse = () => {
         description: formData.description || '',
         totalDays: parseInt(formData.totalDays),
         startDate: formData.startDate,
+        endDate: formData.endDate,
         sections: formData.sections.map((day, index) => ({
           dayNumber: day.dayNumber || (index + 1),
           sections: (day.sections || []).map(section => ({
@@ -166,9 +170,16 @@ const EditCourse = () => {
             <label>Description</label>
             <textarea name="description" value={formData.description} onChange={handleChange} rows="4" />
           </div>
-          <div className="form-group">
-            <label>Start Date *</label>
-            <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required />
+          <div className="form-row">
+            <div className="form-group">
+              <label>Start Date *</label>
+              <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required />
+            </div>
+            <div className="form-group">
+              <label>End Date *</label>
+              <input type="date" name="endDate" value={formData.endDate} onChange={handleChange} min={formData.startDate} required />
+              <p className="form-hint">Course visible to students between these dates</p>
+            </div>
           </div>
           <div className="form-group">
             <label>Number of Days *</label>

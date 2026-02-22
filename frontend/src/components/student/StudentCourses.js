@@ -136,6 +136,17 @@ const StudentCourses = () => {
                         <FiCalendar />
                         <span>{course.totalDays} days</span>
                       </div>
+                      
+                      {(course.startDate || course.endDate) && (
+                        <div className="course-date-range">
+                          <FiCalendar />
+                          <span>
+                            {course.startDate ? new Date(course.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'} 
+                            {' - '} 
+                            {course.endDate ? new Date(course.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

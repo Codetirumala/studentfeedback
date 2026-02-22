@@ -10,6 +10,7 @@ const CreateCourse = () => {
     description: '',
     totalDays: 1,
     startDate: new Date().toISOString().split('T')[0],
+    endDate: '',
     sections: []
   });
   const [expandedDays, setExpandedDays] = useState({});
@@ -218,6 +219,7 @@ Only return the description text.`;
         description: formData.description || '',
         totalDays: parseInt(formData.totalDays),
         startDate: formData.startDate,
+        endDate: formData.endDate,
         sections: formData.sections.map((day, index) => {
           // Clean sections array
           const cleanSections = (day.sections || []).map(section => ({
@@ -288,15 +290,29 @@ Only return the description text.`;
               💡 Add section headings for each day below, then click "Generate Course Description" to auto-generate based on all topics.
             </p>
           </div>
-          <div className="form-group">
-            <label>Start Date *</label>
-            <input
-              type="date"
-              name="startDate"
-              value={formData.startDate}
-              onChange={handleChange}
-              required
-            />
+          <div className="form-row">
+            <div className="form-group">
+              <label>Start Date *</label>
+              <input
+                type="date"
+                name="startDate"
+                value={formData.startDate}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>End Date *</label>
+              <input
+                type="date"
+                name="endDate"
+                value={formData.endDate}
+                onChange={handleChange}
+                min={formData.startDate}
+                required
+              />
+              <p className="form-hint">Course visible to students between these dates</p>
+            </div>
           </div>
           <div className="form-group">
             <label>Number of Days *</label>

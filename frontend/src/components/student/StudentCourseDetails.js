@@ -302,6 +302,16 @@ const StudentCourseDetails = () => {
             <FiClock style={{ color: '#6b7280' }} />
             <span>{course.totalDays - daysCompleted} days remaining</span>
           </div>
+          {(course.startDate || course.endDate) && (
+            <div className="progress-stat course-date-range">
+              <FiCalendar style={{ color: '#3b5998' }} />
+              <span>
+                {course.startDate ? new Date(course.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}
+                {' - '}
+                {course.endDate ? new Date(course.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Evaluation Submission Status */}

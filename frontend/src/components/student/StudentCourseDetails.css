@@ -252,6 +252,14 @@
   font-size: 18px;
 }
 
+.progress-stat.course-date-range {
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8f5e9 100%);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 500;
+  color: #3b5998;
+}
+
 /* Course Content Card */
 .course-content-card {
   background: white;

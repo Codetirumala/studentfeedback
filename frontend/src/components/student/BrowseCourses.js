@@ -49,18 +49,31 @@ const BrowseCourses = () => {
 
   // Separate courses into open and future enrollment
   const now = new Date();
+  now.setHours(0, 0, 0, 0); // Reset to start of day for accurate comparison
   
   const openCourses = courses.filter(course => {
-    // Open courses: enrollmentEnabled is true AND startDate is today or in the past
+    // Open courses: enrollmentEnabled is true AND current date is between startDate and endDate
     if (!course.enrollmentEnabled) return false;
-    const startDate = course.startDate ? new Date(course.startDate) : now;
-    return startDate <= now;
+    const startDate = course.startDate ? new Date(course.startDate) : null;
+    const endDate = course.endDate ? new Date(course.endDate) : null;
+    
+    if (!startDate) return false; // Must have start date
+    startDate.setHours(0, 0, 0, 0);
+    
+    if (endDate) {
+      endDate.setHours(23, 59, 59, 999); // End of day
+      return now >= startDate && now <= endDate;
+    }
+    
+    return now >= startDate; // If no end date, show if started
   });
 
   const futureCourses = courses.filter(course => {
     // Future courses: enrollmentEnabled is true BUT startDate is in the future
     if (!course.enrollmentEnabled) return false;
-    const startDate = course.startDate ? new Date(course.startDate) : now;
+    const startDate = course.startDate ? new Date(course.startDate) : null;
+    if (!startDate) return false;
+    startDate.setHours(0, 0, 0, 0);
     return startDate > now;
   });
 
@@ -108,10 +121,15 @@ const BrowseCourses = () => {
         <div className="course-info">
           <span><FiBook /> {course.totalDays} Days</span>
           <span>{course.sections?.length || 0} Sections</span>
-          {course.startDate && (
-            <span><FiCalendar /> {formatDate(course.startDate)}</span>
-          )}
+          <span><FiCalendar /> {formatDate(course.startDate)}</span>
         </div>
+        {(course.startDate || course.endDate) && (
+          <div className="course-dates">
+            <span className="date-range">
+              <FiCalendar /> {formatDate(course.startDate)} - {formatDate(course.endDate)}
+            </span>
+          </div>
+        )}
         <div className="course-actions">
           {enrolled ? (
             <div className="enrollment-status">

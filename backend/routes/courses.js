@@ -60,7 +60,7 @@ router.get('/:id', auth, async (req, res) => {
 // Create course (teacher only)
 router.post('/', auth, isTeacher, async (req, res) => {
   try {
-    const { title, description, totalDays, sections, startDate } = req.body;
+    const { title, description, totalDays, sections, startDate, endDate } = req.body;
 
     // Calculate dates for each day based on start date
     let processedSections = sections || [];
@@ -105,6 +105,7 @@ router.post('/', auth, isTeacher, async (req, res) => {
       totalDays: parseInt(totalDays),
       sections: processedSections,
       startDate: start,
+      endDate: endDate ? new Date(endDate) : null,
       teacher: req.user.userId,
       status: 'draft'
     });
@@ -133,11 +134,12 @@ router.put('/:id', auth, isTeacher, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized' });
     }
 
-    const { title, description, totalDays, sections, status, enrollmentEnabled, startDate } = req.body;
+    const { title, description, totalDays, sections, status, enrollmentEnabled, startDate, endDate } = req.body;
 
     if (title) course.title = title;
     if (description !== undefined) course.description = description;
     if (totalDays) course.totalDays = totalDays;
+    if (endDate) course.endDate = new Date(endDate);
     if (sections) {
       // Recalculate dates if start date changed
       let processedSections = sections;

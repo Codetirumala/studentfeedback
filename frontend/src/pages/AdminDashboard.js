@@ -234,14 +234,11 @@ const AdminDashboard = () => {
     const type = reportPreview.type;
 
     if (type === 'evaluations') {
-      const answerKeys = Object.keys(first.answers || {}).sort();
-      return [
-        { key: '_student_name', label: 'Student', render: item => item.student?.name || '-' },
-        { key: '_student_email', label: 'Email', render: item => item.student?.email || '-' },
-        { key: '_student_roll', label: 'Roll No', render: item => item.student?.rollNumber || '-' },
-        { key: '_student_branch', label: 'Branch', render: item => item.student?.branch || '-' },
-        ...answerKeys.map(q => ({ key: q, label: q.toUpperCase(), render: item => item.answers?.[q] ?? '-', isAnswer: true }))
-      ];
+      // Get Q keys and sort them numerically (Q1, Q2, Q3... not Q1, Q10, Q11...)
+      const qKeys = Object.keys(first).filter(k => k.match(/^Q\d+$/)).sort((a, b) => {
+        return parseInt(a.replace('Q', '')) - parseInt(b.replace('Q', ''));
+      });
+      return qKeys.map(q => ({ key: q, label: q, render: item => item[q] ?? '-', isAnswer: true }));
     }
 
     if (type === 'attendance') {
@@ -1245,19 +1242,27 @@ const AdminDashboard = () => {
                       <p className="eval-picker-empty">No courses found</p>
                     ) : (
                       evalCourseList.map(course => (
-                        <button
-                          key={course._id}
-                          className="eval-picker-item"
-                          onClick={() => {
-                            fetchReportPreview('evaluations', course._id, course.title);
-                          }}
-                        >
-                          <div className="eval-picker-course-info">
-                            <span className="eval-picker-title">{course.title}</span>
-                            <span className="eval-picker-code">{course.courseCode}</span>
-                          </div>
-                          <span className="eval-picker-arrow">�</span>
-                        </button>
+                        <div key={course._id} className="eval-picker-item-row">
+                          <button
+                            className="eval-picker-item"
+                            onClick={() => {
+                              fetchReportPreview('evaluations', course._id, course.title);
+                            }}
+                          >
+                            <div className="eval-picker-course-info">
+                              <span className="eval-picker-title">{course.title}</span>
+                              <span className="eval-picker-code">{course.courseCode}</span>
+                            </div>
+                            <span className="eval-picker-arrow">→</span>
+                          </button>
+                          <button
+                            className="eval-picker-get-btn"
+                            onClick={() => window.open(`${API_URL}/evaluations/export/${course._id}`, '_blank')}
+                            title="View API JSON Data"
+                          >
+                            GET
+                          </button>
+                        </div>
                       ))
                     )}
                   </div>

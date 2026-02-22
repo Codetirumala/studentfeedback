@@ -376,9 +376,22 @@ router.get('/export/:type', verifyAdmin, async (req, res) => {
         if (req.query.courseId) {
           evalQuery.course = req.query.courseId;
         }
-        data = await Evaluation.find(evalQuery)
+        const evaluations = await Evaluation.find(evalQuery)
           .populate('student', 'name email rollNumber branch section')
           .populate('course', 'title courseCode');
+        
+        // Transform evaluations to flat rows with only question columns in numerical order
+        data = evaluations.map(ev => {
+          const row = {};
+          
+          // Add questions in numerical order (Q1, Q2, Q3... Q20)
+          for (let i = 1; i <= 20; i++) {
+            const key = `q${i}`;
+            row[`Q${i}`] = ev.answers?.[key] || '';
+          }
+          
+          return row;
+        });
         break;
       case 'attendance':
         // Pivot format: rows = students, columns = Day1..DayN

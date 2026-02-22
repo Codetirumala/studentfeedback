@@ -5,6 +5,38 @@ const Evaluation = require('../models/Evaluation');
 const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
 
+// Evaluation questions data
+const evaluationQuestions = [
+  { key: 'q1', text: 'How clearly were the objectives of the training program explained?', options: ['Very Clear', 'Clear', 'Neutral', 'Unclear', 'Very Unclear'] },
+  { key: 'q2', text: 'How well was the program structured?', options: ['Excellent', 'Good', 'Average', 'Poor', 'Very Poor'] },
+  { key: 'q3', text: 'Was the duration of the program appropriate?', options: ['Too Long', 'Slightly Long', 'Appropriate', 'Slightly Short', 'Too Short'] },
+  { key: 'q4', text: 'How relevant was the course content to your needs?', options: ['Very Relevant', 'Relevant', 'Neutral', 'Less Relevant', 'Not Relevant'] },
+  { key: 'q5', text: 'How would you rate the quality of learning materials?', options: ['Excellent', 'Good', 'Average', 'Poor', 'Very Poor'] },
+  { key: 'q6', text: 'How understandable was the content delivered?', options: ['Very Easy to Understand', 'Easy to Understand', 'Neutral', 'Difficult', 'Very Difficult'] },
+  { key: 'q7', text: 'How knowledgeable was the trainer?', options: ['Highly Knowledgeable', 'Knowledgeable', 'Neutral', 'Less Knowledgeable', 'Not Knowledgeable'] },
+  { key: 'q8', text: "How effective was the trainer's explanation style?", options: ['Very Effective', 'Effective', 'Neutral', 'Ineffective', 'Very Ineffective'] },
+  { key: 'q9', text: 'How well did the trainer encourage interaction?', options: ['Very Well', 'Well', 'Neutral', 'Poorly', 'Very Poorly'] },
+  { key: 'q10', text: 'How engaging were the sessions?', options: ['Highly Engaging', 'Engaging', 'Neutral', 'Less Engaging', 'Not Engaging'] },
+  { key: 'q11', text: 'Did activities or discussions help your understanding?', options: ['Very Helpful', 'Helpful', 'Neutral', 'Less Helpful', 'Not Helpful'] },
+  { key: 'q12', text: 'How motivated were you to attend all sessions?', options: ['Highly Motivated', 'Motivated', 'Neutral', 'Less Motivated', 'Not Motivated'] },
+  { key: 'q13', text: 'How much knowledge or skill did you gain?', options: ['A Lot', 'Good Amount', 'Moderate', 'Little', 'None'] },
+  { key: 'q14', text: 'How confident do you feel after completing the program?', options: ['Very Confident', 'Confident', 'Neutral', 'Less Confident', 'Not Confident'] },
+  { key: 'q15', text: 'How useful is this program for your future goals?', options: ['Very Useful', 'Useful', 'Neutral', 'Less Useful', 'Not Useful'] },
+  { key: 'q16', text: 'What best describes your attendance?', options: ['Attended All Sessions', 'Missed 1–2 Sessions', 'Missed Several Sessions', 'Attended Few Sessions', 'Rarely Attended'] },
+  { key: 'q17', text: 'What was the main reason for missing any sessions?', options: ['No Sessions Missed', 'Timing Issues', 'Academic Workload', 'Personal Reasons', 'Technical Issues'] },
+  { key: 'q18', text: 'How convenient was the session schedule?', options: ['Very Convenient', 'Convenient', 'Neutral', 'Inconvenient', 'Very Inconvenient'] },
+  { key: 'q19', text: 'Overall, how satisfied are you with the program?', options: ['Very Satisfied', 'Satisfied', 'Neutral', 'Dissatisfied', 'Very Dissatisfied'] },
+  { key: 'q20', text: 'Would you recommend this program to others?', options: ['Definitely Yes', 'Probably Yes', 'Not Sure', 'Probably No', 'Definitely No'] }
+];
+
+// GET all evaluation questions
+router.get('/questions', (req, res) => {
+  res.json({
+    totalQuestions: evaluationQuestions.length,
+    questions: evaluationQuestions
+  });
+});
+
 // Submit overall MCQ evaluation (student) - only after course completed
 router.post('/', auth, isStudent, async (req, res) => {
   try {
@@ -81,6 +113,40 @@ router.get('/course/:courseId', auth, isTeacher, async (req, res) => {
 
     const evaluations = await Evaluation.find({ course: courseId }).populate('student', 'name email');
     res.json(evaluations);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// GET evaluation CSV data for a specific course (public endpoint for viewing)
+router.get('/export/:courseId', async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    
+    const course = await Course.findById(courseId).select('title courseCode');
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    const evaluations = await Evaluation.find({ course: courseId });
+    
+    // Transform to CSV-like format with Q1-Q20 columns
+    const csvData = evaluations.map(ev => {
+      const row = {};
+      for (let i = 1; i <= 20; i++) {
+        row[`Q${i}`] = ev.answers?.[`q${i}`] || '';
+      }
+      return row;
+    });
+
+    res.json({
+      course: {
+        id: course._id,
+        title: course.title,
+        courseCode: course.courseCode
+      },
+      totalResponses: csvData.length,
+      columns: Array.from({ length: 20 }, (_, i) => `Q${i + 1}`),
+      data: csvData
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

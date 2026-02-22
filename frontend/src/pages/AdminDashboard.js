@@ -1270,7 +1270,7 @@ const AdminDashboard = () => {
               </div>
             )}
 
-            {/* Attendance Course Picker Modal */}}
+            {/* Attendance Course Picker Modal */}
             {showAttPicker && (
               <div className="eval-picker-overlay" onClick={() => setShowAttPicker(false)}>
                 <div className="eval-picker-modal" onClick={(e) => e.stopPropagation()}>

@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../utils/api';
 import { FiCheck, FiX, FiUser } from 'react-icons/fi';
 import './Enrollments.css';
 
 const Enrollments = () => {
-  const [activeTab, setActiveTab] = useState('pending');
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('status') || 'pending';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [pendingEnrollments, setPendingEnrollments] = useState([]);
   const [approvedEnrollments, setApprovedEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -34,35 +34,40 @@ const TeacherDashboardHome = () => {
       value: stats?.totalCourses || 0,
       icon: FiBook,
       color: '#3b82f6',
-      bg: '#3b82f620'
+      bg: '#3b82f620',
+      route: '/teacher/courses'
     },
     {
       title: 'Active Courses',
       value: stats?.activeCourses || 0,
       icon: FiBarChart2,
       color: '#10b981',
-      bg: '#10b98120'
+      bg: '#10b98120',
+      route: '/teacher/courses?status=active'
     },
     {
       title: 'Students Enrolled',
       value: stats?.totalStudents || 0,
       icon: FiUsers,
       color: '#6366f1',
-      bg: '#6366f120'
+      bg: '#6366f120',
+      route: '/teacher/enrollments'
     },
     {
       title: 'Pending Requests',
       value: stats?.pendingRequests || 0,
       icon: FiClock,
       color: '#f59e0b',
-      bg: '#f59e0b20'
+      bg: '#f59e0b20',
+      route: '/teacher/enrollments?status=pending'
     },
     {
       title: 'Avg Attendance',
       value: `${stats?.avgAttendance || 0}%`,
       icon: FiUserCheck,
       color: '#8b5cf6',
-      bg: '#8b5cf620'
+      bg: '#8b5cf620',
+      route: '/teacher/attendance'
     },
     {
       title: 'Day Completion',
@@ -70,7 +75,8 @@ const TeacherDashboardHome = () => {
       subtext: stats?.totalDays > 0 ? `${stats?.completedDays || 0}/${stats?.totalDays} days` : null,
       icon: FiTrendingUp,
       color: '#10b981',
-      bg: '#10b98120'
+      bg: '#10b98120',
+      route: '/teacher/courses'
     }
   ];
 
@@ -88,7 +94,12 @@ const TeacherDashboardHome = () => {
         {summaryCards.map((card, index) => {
           const Icon = card.icon;
           return (
-            <div key={index} className="stat-card-new">
+            <div 
+              key={index} 
+              className="stat-card-new clickable"
+              onClick={() => navigate(card.route)}
+              style={{ cursor: 'pointer' }}
+            >
               <div className="stat-icon-wrapper" style={{ backgroundColor: card.bg }}>
                 <Icon style={{ color: card.color }} />
               </div>

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../utils/api';
 import { FiPlus, FiEdit3, FiEye, FiTrash2, FiUsers, FiBook, FiCalendar, FiCheckCircle, FiClock, FiBarChart2 } from 'react-icons/fi';
 import './MyCourses.css';
 
 const MyCourses = () => {
+  const [searchParams] = useSearchParams();
+  const initialFilter = searchParams.get('status') || 'all';
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // all, active, draft, completed
+  const [filter, setFilter] = useState(initialFilter); // all, active, draft, completed
   const [enrollmentCounts, setEnrollmentCounts] = useState({});
   const navigate = useNavigate();
 

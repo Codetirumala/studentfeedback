@@ -39,6 +39,7 @@ const attendanceRoutes = require('../backend/routes/attendance');
 const analyticsRoutes = require('../backend/routes/analytics');
 const ratingsRoutes = require('../backend/routes/ratings');
 const certificatesRoutes = require('../backend/routes/certificates');
+const adminRoutes = require('../backend/routes/admin');
 
 // Use Routes
 app.use('/api/auth', authRoutes);
@@ -51,6 +52,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/ratings', ratingsRoutes);
 app.use('/api/certificates', certificatesRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api', (req, res) => {

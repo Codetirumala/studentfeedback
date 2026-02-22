@@ -11,6 +11,7 @@ const Documentation = () => {
     { id: 'teacher', title: '👨‍🏫 Teacher Portal', icon: '👨‍🏫' },
     { id: 'student', title: '👨‍🎓 Student Portal', icon: '👨‍🎓' },
     { id: 'features', title: '✨ Features', icon: '✨' },
+    { id: 'ai-ml', title: '🤖 AI & ML', icon: '🤖' },
     { id: 'api', title: '🔗 API Endpoints', icon: '🔗' },
     { id: 'tech-stack', title: '🛠️ Tech Stack', icon: '🛠️' },
   ];
@@ -570,6 +571,140 @@ const Documentation = () => {
                   <li>Certificate verification</li>
                   <li>Attendance-based eligibility</li>
                 </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* AI & ML Section */}
+        <section id="ai-ml" className="doc-section">
+          <div className="section-header">
+            <h2>🤖 AI & Machine Learning</h2>
+            <span className="version-badge">NEW</span>
+          </div>
+
+          <div className="ai-intro-card">
+            <div className="ai-intro-icon">🧠</div>
+            <div className="ai-intro-content">
+              <h3>Intelligent Features Powered by AI</h3>
+              <p>
+                Our platform integrates cutting-edge AI and Machine Learning capabilities to enhance 
+                the user experience and automate repetitive tasks. We leverage Google's Gemini AI 
+                for intelligent content generation.
+              </p>
+            </div>
+          </div>
+
+          <h3>Current AI Features</h3>
+          <div className="ai-features-grid">
+            <div className="ai-feature-card active">
+              <div className="ai-feature-status">✅ Live</div>
+              <div className="ai-feature-icon">📝</div>
+              <h4>Auto Course Description</h4>
+              <p>When teachers create a course, AI automatically generates a professional course description based on the title.</p>
+              <div className="ai-tech-badge">
+                <span>Gemini 1.5 Flash</span>
+              </div>
+            </div>
+          </div>
+
+          <h3>Upcoming AI Features (Roadmap)</h3>
+          <div className="ai-features-grid">
+            <div className="ai-feature-card upcoming">
+              <div className="ai-feature-status">🔜 Coming Soon</div>
+              <div className="ai-feature-icon">💬</div>
+              <h4>Sentiment Analysis</h4>
+              <p>Automatically analyze student feedback to detect positive, negative, or neutral sentiment patterns.</p>
+              <div className="ai-tech-badge">
+                <span>NLP</span>
+                <span>Gemini Pro</span>
+              </div>
+            </div>
+
+            <div className="ai-feature-card upcoming">
+              <div className="ai-feature-status">🔜 Coming Soon</div>
+              <div className="ai-feature-icon">📊</div>
+              <h4>Predictive Analytics</h4>
+              <p>Predict student performance, course completion rates, and identify at-risk students early.</p>
+              <div className="ai-tech-badge">
+                <span>Machine Learning</span>
+                <span>TensorFlow</span>
+              </div>
+            </div>
+
+            <div className="ai-feature-card upcoming">
+              <div className="ai-feature-status">🔜 Coming Soon</div>
+              <div className="ai-feature-icon">🎯</div>
+              <h4>Smart Recommendations</h4>
+              <p>Recommend courses to students based on their interests, past enrollments, and skill gaps.</p>
+              <div className="ai-tech-badge">
+                <span>Collaborative Filtering</span>
+              </div>
+            </div>
+
+            <div className="ai-feature-card upcoming">
+              <div className="ai-feature-status">🔜 Coming Soon</div>
+              <div className="ai-feature-icon">📄</div>
+              <h4>Auto Content Generation</h4>
+              <p>Generate course sections, quiz questions, and learning materials using AI assistance.</p>
+              <div className="ai-tech-badge">
+                <span>Gemini Pro</span>
+                <span>LLM</span>
+              </div>
+            </div>
+
+            <div className="ai-feature-card upcoming">
+              <div className="ai-feature-status">🔜 Coming Soon</div>
+              <div className="ai-feature-icon">🗣️</div>
+              <h4>AI Chatbot Assistant</h4>
+              <p>Interactive chatbot to answer student queries about courses, schedules, and learning materials.</p>
+              <div className="ai-tech-badge">
+                <span>Conversational AI</span>
+                <span>RAG</span>
+              </div>
+            </div>
+
+            <div className="ai-feature-card upcoming">
+              <div className="ai-feature-status">🔜 Coming Soon</div>
+              <div className="ai-feature-icon">📈</div>
+              <h4>Attendance Prediction</h4>
+              <p>Predict student attendance patterns and send proactive reminders to improve participation.</p>
+              <div className="ai-tech-badge">
+                <span>Time Series ML</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="ai-tech-stack">
+            <h3>AI Technology Stack</h3>
+            <div className="ai-tech-items">
+              <div className="ai-tech-item">
+                <span className="tech-logo">🔮</span>
+                <div>
+                  <h5>Google Gemini AI</h5>
+                  <p>Content generation & NLP</p>
+                </div>
+              </div>
+              <div className="ai-tech-item">
+                <span className="tech-logo">🧮</span>
+                <div>
+                  <h5>TensorFlow.js</h5>
+                  <p>Client-side ML models</p>
+                </div>
+              </div>
+              <div className="ai-tech-item">
+                <span className="tech-logo">🐍</span>
+                <div>
+                  <h5>Python ML Services</h5>
+                  <p>Backend ML processing</p>
+                </div>
+              </div>
+              <div className="ai-tech-item">
+                <span className="tech-logo">📊</span>
+                <div>
+                  <h5>Scikit-learn</h5>
+                  <p>Predictive models</p>
+                </div>
               </div>
             </div>
           </div>

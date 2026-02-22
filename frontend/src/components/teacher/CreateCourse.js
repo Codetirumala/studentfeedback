@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
-import { FiPlus, FiTrash2, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiChevronDown, FiChevronUp, FiZap } from 'react-icons/fi';
 import './CreateCourse.css';
 
 const CreateCourse = () => {
@@ -14,7 +14,56 @@ const CreateCourse = () => {
   });
   const [expandedDays, setExpandedDays] = useState({});
   const [loading, setLoading] = useState(false);
+  const [generatingDescription, setGeneratingDescription] = useState(false);
   const navigate = useNavigate();
+
+  // Generate description using Puter.js (Free Gemini API)
+  const generateDescription = async (title) => {
+    if (!title || title.trim().length < 3) return;
+    
+    setGeneratingDescription(true);
+    try {
+      // Using Puter.js for free Gemini access
+      const prompt = `Generate a professional and engaging course description for a training program titled "${title}". 
+
+The description should be:
+- 2-3 paragraphs (around 100-150 words)
+- Professional and informative
+- Highlight what students will learn
+- Mention key skills they will gain
+- Be suitable for a corporate training environment
+
+Only return the description text, no headings or bullet points.`;
+
+      // eslint-disable-next-line no-undef
+      const response = await puter.ai.chat(prompt, {
+        model: 'gemini-2.0-flash'
+      });
+      
+      if (response) {
+        const generatedText = typeof response === 'string' ? response.trim() : response.message?.content?.trim() || '';
+        if (generatedText) {
+          setFormData(prev => ({
+            ...prev,
+            description: generatedText
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error generating description:', error);
+      // Fallback: show error message
+      alert('AI generation failed. Please enter description manually.');
+    } finally {
+      setGeneratingDescription(false);
+    }
+  };
+
+  // Handle title blur to trigger AI generation
+  const handleTitleBlur = () => {
+    if (formData.title && formData.title.trim().length >= 3 && !formData.description) {
+      generateDescription(formData.title);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -160,16 +209,36 @@ const CreateCourse = () => {
               name="title"
               value={formData.title}
               onChange={handleChange}
+              onBlur={handleTitleBlur}
+              placeholder="Enter course title (AI will generate description)"
               required
             />
           </div>
           <div className="form-group">
-            <label>Description</label>
+            <label>
+              Description
+              {generatingDescription && (
+                <span className="ai-generating">
+                  <FiZap className="ai-icon spinning" /> AI Generating...
+                </span>
+              )}
+              {!generatingDescription && formData.title && !formData.description && (
+                <button 
+                  type="button" 
+                  className="ai-generate-btn"
+                  onClick={() => generateDescription(formData.title)}
+                >
+                  <FiZap /> Generate with AI
+                </button>
+              )}
+            </label>
             <textarea
               name="description"
               value={formData.description}
               onChange={handleChange}
               rows="4"
+              placeholder={generatingDescription ? "Generating description..." : "Course description (auto-generated or enter manually)"}
+              disabled={generatingDescription}
             />
           </div>
           <div className="form-group">

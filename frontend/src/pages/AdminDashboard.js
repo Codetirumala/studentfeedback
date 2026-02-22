@@ -57,6 +57,14 @@ const AdminDashboard = () => {
   const [attReportExpandedDay, setAttReportExpandedDay] = useState(null);
   const [attReportImageModal, setAttReportImageModal] = useState(null);
 
+  // Course Full Report feature
+  const [showFullReportPicker, setShowFullReportPicker] = useState(false);
+  const [fullReportCourseList, setFullReportCourseList] = useState([]);
+  const [fullReportData, setFullReportData] = useState(null);
+  const [fullReportLoading, setFullReportLoading] = useState(false);
+  const [fullReportExpandedDay, setFullReportExpandedDay] = useState(null);
+  const [fullReportImageModal, setFullReportImageModal] = useState(null);
+
   // Fetch data function with useCallback for stable reference
   const fetchAllData = useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true);
@@ -362,6 +370,143 @@ const AdminDashboard = () => {
       console.error('Error fetching course attendance detail:', error);
     }
     setAttReportDetailLoading(false);
+  };
+
+  // Course Full Report functions
+  const fetchFullCourseReport = async (courseId) => {
+    setShowFullReportPicker(false);
+    setFullReportLoading(true);
+    setFullReportExpandedDay(null);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.get(`${API_URL}/admin/course-full-report/${courseId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setFullReportData(res.data);
+    } catch (error) {
+      console.error('Error fetching full course report:', error);
+      alert('Failed to load course report');
+    }
+    setFullReportLoading(false);
+  };
+
+  const generatePDF = async () => {
+    if (!fullReportData) return;
+    
+    // Create a printable HTML content
+    const printContent = document.getElementById('full-report-content');
+    if (!printContent) return;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${fullReportData.title} - Full Report</title>
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; color: #333; }
+          .report-header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #6366f1; }
+          .report-header h1 { color: #1e293b; font-size: 28px; margin-bottom: 8px; }
+          .report-header .course-code { color: #6366f1; font-weight: 600; font-size: 16px; }
+          .report-header .meta { color: #64748b; font-size: 14px; margin-top: 10px; }
+          .report-description { background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #6366f1; }
+          .day-section { margin-bottom: 30px; page-break-inside: avoid; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+          .day-header { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 15px 20px; }
+          .day-header h2 { font-size: 18px; margin-bottom: 5px; }
+          .day-header .day-meta { font-size: 13px; opacity: 0.9; }
+          .day-content { padding: 20px; }
+          .stats-row { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+          .stat-box { background: #f1f5f9; padding: 12px 18px; border-radius: 8px; text-align: center; min-width: 100px; }
+          .stat-box .value { font-size: 24px; font-weight: 700; color: #1e293b; }
+          .stat-box .label { font-size: 12px; color: #64748b; }
+          .stat-box.present .value { color: #10b981; }
+          .stat-box.absent .value { color: #ef4444; }
+          .stat-box.rating .value { color: #f59e0b; }
+          .images-row { display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }
+          .image-card { flex: 1; min-width: 200px; text-align: center; }
+          .image-card img { max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid #e2e8f0; }
+          .image-card .label { font-size: 12px; color: #64748b; margin-top: 8px; }
+          .no-image { background: #f8fafc; padding: 40px; border-radius: 8px; color: #94a3b8; }
+          .rating-dist { margin-top: 15px; }
+          .rating-bar { display: flex; align-items: center; margin: 5px 0; }
+          .rating-bar .stars { width: 60px; font-size: 12px; }
+          .rating-bar .bar { flex: 1; height: 12px; background: #e2e8f0; border-radius: 6px; overflow: hidden; }
+          .rating-bar .fill { height: 100%; background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+          .rating-bar .count { width: 40px; text-align: right; font-size: 12px; color: #64748b; }
+          .comments { margin-top: 15px; }
+          .comment { background: #fffbeb; padding: 10px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #f59e0b; }
+          .comment .name { font-weight: 600; font-size: 13px; color: #1e293b; }
+          .comment .text { font-size: 13px; color: #475569; margin-top: 4px; }
+          @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .day-section { break-inside: avoid; } }
+        </style>
+      </head>
+      <body>
+        <div class="report-header">
+          <h1>${fullReportData.title}</h1>
+          <div class="course-code">${fullReportData.courseCode || ''}</div>
+          <div class="meta">
+            Teacher: ${fullReportData.teacher?.name || 'N/A'} | 
+            ${fullReportData.totalDays} Days | 
+            ${fullReportData.totalStudents} Students |
+            Generated: ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+          </div>
+        </div>
+        ${fullReportData.description ? `<div class="report-description">${fullReportData.description}</div>` : ''}
+        ${fullReportData.daysData.map(day => `
+          <div class="day-section">
+            <div class="day-header">
+              <h2>Day ${day.dayNumber}: ${day.sectionTitle}</h2>
+              <div class="day-meta">${day.sectionDescription || ''}</div>
+            </div>
+            <div class="day-content">
+              <div class="stats-row">
+                <div class="stat-box present"><div class="value">${day.presentCount}</div><div class="label">Present</div></div>
+                <div class="stat-box absent"><div class="value">${day.absentCount}</div><div class="label">Absent</div></div>
+                <div class="stat-box"><div class="value">${day.totalStudents}</div><div class="label">Total</div></div>
+                <div class="stat-box rating"><div class="value">${day.avgRating > 0 ? day.avgRating + '★' : 'N/A'}</div><div class="label">${day.totalRatings} Ratings</div></div>
+              </div>
+              <div class="images-row">
+                <div class="image-card">
+                  ${day.classImage ? `<img src="${day.classImage}" alt="Class Photo" /><div class="label">📷 Class Photo</div>` : '<div class="no-image">No Class Photo</div>'}
+                </div>
+                <div class="image-card">
+                  ${day.attendanceSheetImage ? `<img src="${day.attendanceSheetImage}" alt="Attendance Sheet" /><div class="label">📋 Attendance Sheet</div>` : '<div class="no-image">No Attendance Sheet</div>'}
+                </div>
+              </div>
+              ${day.totalRatings > 0 ? `
+                <div class="rating-dist">
+                  <strong>Rating Distribution</strong>
+                  ${[5,4,3,2,1].map(r => `
+                    <div class="rating-bar">
+                      <span class="stars">${'★'.repeat(r)}</span>
+                      <div class="bar"><div class="fill" style="width: ${day.totalRatings > 0 ? (day.ratingDistribution[r] / day.totalRatings * 100) : 0}%"></div></div>
+                      <span class="count">${day.ratingDistribution[r] || 0}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+              ${day.ratingComments && day.ratingComments.length > 0 ? `
+                <div class="comments">
+                  <strong>Student Comments</strong>
+                  ${day.ratingComments.map(c => `
+                    <div class="comment">
+                      <div class="name">${c.student} - ${'★'.repeat(c.rating)}</div>
+                      <div class="text">${c.comment}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
   };
 
   // Filter functions
@@ -1226,6 +1371,24 @@ const AdminDashboard = () => {
                   🔍 Preview & Export
                 </button>
               </div>
+
+              <div className="report-card report-card-highlight">
+                <div className="rc-icon">📊</div>
+                <h4>Course Full Report</h4>
+                <p>Complete course report with photos, attendance & ratings - PDF export</p>
+                <button className="btn-highlight" onClick={async () => {
+                  try {
+                    const token = localStorage.getItem('adminToken');
+                    const res = await axios.get(`${API_URL}/admin/courses`, { headers: { Authorization: `Bearer ${token}` } });
+                    setFullReportCourseList(res.data || []);
+                    setShowFullReportPicker(true);
+                  } catch (err) {
+                    alert('Failed to load courses');
+                  }
+                }}>
+                  📄 Generate Report
+                </button>
+              </div>
             </div>
 
             {/* Evaluation Course Picker Modal */}
@@ -1359,6 +1522,211 @@ const AdminDashboard = () => {
                     )}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Course Full Report Picker Modal */}
+            {showFullReportPicker && (
+              <div className="eval-picker-overlay" onClick={() => setShowFullReportPicker(false)}>
+                <div className="eval-picker-modal full-report-picker" onClick={(e) => e.stopPropagation()}>
+                  <div className="eval-picker-header">
+                    <h3>📊 Select Course for Full Report</h3>
+                    <button className="eval-picker-close" onClick={() => setShowFullReportPicker(false)}>✕</button>
+                  </div>
+                  <p className="eval-picker-desc">Generate comprehensive report with photos, attendance & ratings</p>
+                  <div className="eval-picker-list">
+                    {fullReportCourseList.length === 0 ? (
+                      <p className="eval-picker-empty">No courses found</p>
+                    ) : (
+                      fullReportCourseList.map(course => (
+                        <button
+                          key={course._id}
+                          className="eval-picker-item full-report-item"
+                          onClick={() => fetchFullCourseReport(course._id)}
+                        >
+                          <div className="eval-picker-course-info">
+                            <span className="eval-picker-title">{course.title}</span>
+                            <span className="eval-picker-code">{course.courseCode} • {course.totalDays} days</span>
+                          </div>
+                          <span className="eval-picker-arrow">📄</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Full Report Loading */}
+            {fullReportLoading && (
+              <div className="eval-picker-overlay">
+                <div className="eval-preview-loading">
+                  <div className="eval-spinner"></div>
+                  <span>Generating report...</span>
+                </div>
+              </div>
+            )}
+
+            {/* Course Full Report Modal */}
+            {fullReportData && (
+              <div className="eval-picker-overlay" onClick={() => setFullReportData(null)}>
+                <div className="full-report-modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="full-report-header">
+                    <div className="full-report-title-section">
+                      <h2>{fullReportData.title}</h2>
+                      <div className="full-report-meta">
+                        <span className="fr-badge">{fullReportData.courseCode}</span>
+                        <span>👨‍🏫 {fullReportData.teacher?.name || 'N/A'}</span>
+                        <span>📅 {fullReportData.totalDays} Days</span>
+                        <span>🎓 {fullReportData.totalStudents} Students</span>
+                        <span className={`fr-status-badge ${fullReportData.status}`}>{fullReportData.status}</span>
+                      </div>
+                    </div>
+                    <div className="full-report-actions">
+                      <button className="fr-pdf-btn" onClick={generatePDF}>
+                        📄 Download PDF
+                      </button>
+                      <button className="eval-picker-close" onClick={() => setFullReportData(null)}>✕</button>
+                    </div>
+                  </div>
+
+                  {fullReportData.description && (
+                    <div className="full-report-description">
+                      <p>{fullReportData.description}</p>
+                    </div>
+                  )}
+
+                  <div className="full-report-content" id="full-report-content">
+                    {fullReportData.daysData.map(day => (
+                      <div 
+                        key={day.dayNumber} 
+                        className={`fr-day-card ${fullReportExpandedDay === day.dayNumber ? 'expanded' : ''}`}
+                      >
+                        <div 
+                          className="fr-day-header"
+                          onClick={() => setFullReportExpandedDay(fullReportExpandedDay === day.dayNumber ? null : day.dayNumber)}
+                        >
+                          <div className="fr-day-info">
+                            <h3>Day {day.dayNumber}: {day.sectionTitle}</h3>
+                            {day.sectionDescription && <p className="fr-day-desc">{day.sectionDescription}</p>}
+                          </div>
+                          <div className="fr-day-stats">
+                            <span className="fr-stat present">✅ {day.presentCount}</span>
+                            <span className="fr-stat absent">❌ {day.absentCount}</span>
+                            {day.avgRating > 0 && <span className="fr-stat rating">⭐ {day.avgRating}</span>}
+                            {(day.classImage || day.attendanceSheetImage) && <span className="fr-stat images">📸</span>}
+                            <span className="fr-expand-icon">{fullReportExpandedDay === day.dayNumber ? '▼' : '▶'}</span>
+                          </div>
+                        </div>
+
+                        {fullReportExpandedDay === day.dayNumber && (
+                          <div className="fr-day-body">
+                            {/* Stats Cards */}
+                            <div className="fr-stats-row">
+                              <div className="fr-stat-card present">
+                                <div className="fr-stat-value">{day.presentCount}</div>
+                                <div className="fr-stat-label">Present</div>
+                              </div>
+                              <div className="fr-stat-card absent">
+                                <div className="fr-stat-value">{day.absentCount}</div>
+                                <div className="fr-stat-label">Absent</div>
+                              </div>
+                              <div className="fr-stat-card total">
+                                <div className="fr-stat-value">{day.totalStudents}</div>
+                                <div className="fr-stat-label">Total Students</div>
+                              </div>
+                              <div className="fr-stat-card rating">
+                                <div className="fr-stat-value">{day.avgRating > 0 ? `${day.avgRating}★` : 'N/A'}</div>
+                                <div className="fr-stat-label">{day.totalRatings} Ratings</div>
+                              </div>
+                            </div>
+
+                            {/* Images Section */}
+                            <div className="fr-images-section">
+                              <h4>📷 Day Photos</h4>
+                              <div className="fr-images-grid">
+                                <div className="fr-image-card">
+                                  <div className="fr-image-label">Class Photo</div>
+                                  {day.classImage ? (
+                                    <img 
+                                      src={day.classImage} 
+                                      alt={`Day ${day.dayNumber} Class`}
+                                      onClick={() => setFullReportImageModal(day.classImage)}
+                                    />
+                                  ) : (
+                                    <div className="fr-no-image">
+                                      <span>🖼️</span>
+                                      <p>No photo uploaded</p>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="fr-image-card">
+                                  <div className="fr-image-label">Attendance Sheet</div>
+                                  {day.attendanceSheetImage ? (
+                                    <img 
+                                      src={day.attendanceSheetImage} 
+                                      alt={`Day ${day.dayNumber} Sheet`}
+                                      onClick={() => setFullReportImageModal(day.attendanceSheetImage)}
+                                    />
+                                  ) : (
+                                    <div className="fr-no-image">
+                                      <span>📋</span>
+                                      <p>No sheet uploaded</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Ratings Section */}
+                            {day.totalRatings > 0 && (
+                              <div className="fr-ratings-section">
+                                <h4>⭐ Student Ratings</h4>
+                                <div className="fr-rating-dist">
+                                  {[5, 4, 3, 2, 1].map(r => (
+                                    <div key={r} className="fr-rating-row">
+                                      <span className="fr-rating-stars">{'★'.repeat(r)}{'☆'.repeat(5-r)}</span>
+                                      <div className="fr-rating-bar">
+                                        <div 
+                                          className="fr-rating-fill" 
+                                          style={{ width: `${day.totalRatings > 0 ? (day.ratingDistribution[r] / day.totalRatings * 100) : 0}%` }}
+                                        ></div>
+                                      </div>
+                                      <span className="fr-rating-count">{day.ratingDistribution[r] || 0}</span>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                {day.ratingComments && day.ratingComments.length > 0 && (
+                                  <div className="fr-comments">
+                                    <h5>💬 Student Comments</h5>
+                                    {day.ratingComments.map((c, idx) => (
+                                      <div key={idx} className="fr-comment">
+                                        <div className="fr-comment-header">
+                                          <span className="fr-comment-name">{c.student}</span>
+                                          <span className="fr-comment-rating">{'★'.repeat(c.rating)}</span>
+                                        </div>
+                                        <p className="fr-comment-text">{c.comment}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Full Report Image Modal */}
+            {fullReportImageModal && (
+              <div className="att-reports-image-modal" onClick={() => setFullReportImageModal(null)}>
+                <img src={fullReportImageModal} alt="Full Size" />
+                <button className="att-reports-image-close" onClick={() => setFullReportImageModal(null)}>✕</button>
               </div>
             )}
 

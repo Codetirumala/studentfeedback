@@ -736,4 +736,117 @@ router.get('/attendance-reports/:courseId', verifyAdmin, async (req, res) => {
   }
 });
 
+// Admin: Get comprehensive course full report (attendance + ratings + images)
+router.get('/course-full-report/:courseId', verifyAdmin, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const course = await Course.findById(courseId).populate('teacher', 'name email department');
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    const enrollments = await Enrollment.find({
+      course: courseId,
+      status: 'approved'
+    }).populate('student', 'name email rollNumber branch section');
+
+    const attendance = await Attendance.find({ course: courseId }).sort({ dayNumber: 1 });
+    const dayImages = await AttendanceDayImage.find({ course: courseId }).sort({ dayNumber: 1 });
+    const dayRatings = await DayRating.find({ course: courseId }).populate('student', 'name');
+
+    const daysData = [];
+    for (let day = 1; day <= course.totalDays; day++) {
+      const dayAtt = attendance.filter(a => a.dayNumber === day);
+      const dayImg = dayImages.find(di => di.dayNumber === day);
+      const dayRats = dayRatings.filter(r => r.dayNumber === day);
+
+      // Get section info from course.sections array
+      const sectionInfo = course.sections && course.sections[day - 1] ? course.sections[day - 1] : null;
+      
+      // Get section title - try nested sections array first, then fallback
+      let sectionTitle = `Day ${day}`;
+      let sectionDescription = '';
+      if (sectionInfo) {
+        // Check if there's a nested sections array with headings
+        if (sectionInfo.sections && sectionInfo.sections.length > 0 && sectionInfo.sections[0].heading) {
+          sectionTitle = sectionInfo.sections.map(s => s.heading).filter(h => h).join(' | ') || `Day ${day}`;
+          sectionDescription = sectionInfo.sections.map(s => s.description).filter(d => d).join(' • ');
+        } else if (sectionInfo.title) {
+          // Fallback to title field if it exists
+          sectionTitle = sectionInfo.title;
+          sectionDescription = sectionInfo.description || '';
+        }
+      }
+
+      const students = enrollments.map(enrollment => {
+        const att = dayAtt.find(a => a.student.toString() === enrollment.student._id.toString());
+        return {
+          name: enrollment.student.name,
+          email: enrollment.student.email,
+          rollNumber: enrollment.student.rollNumber || '',
+          branch: enrollment.student.branch || '',
+          section: enrollment.student.section || '',
+          status: att ? att.status : 'not-marked'
+        };
+      });
+
+      // Calculate average rating for the day
+      const avgRating = dayRats.length > 0 
+        ? (dayRats.reduce((sum, r) => sum + r.rating, 0) / dayRats.length).toFixed(1)
+        : 0;
+
+      // Get rating distribution
+      const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      dayRats.forEach(r => {
+        ratingDistribution[r.rating] = (ratingDistribution[r.rating] || 0) + 1;
+      });
+
+      // Get rating comments
+      const ratingComments = dayRats
+        .filter(r => r.comment && r.comment.trim())
+        .map(r => ({
+          student: r.student ? r.student.name : 'Anonymous',
+          rating: r.rating,
+          comment: r.comment
+        }));
+
+      daysData.push({
+        dayNumber: day,
+        sectionTitle: sectionTitle,
+        sectionDescription: sectionDescription,
+        completed: sectionInfo ? sectionInfo.completed : false,
+        completedAt: sectionInfo ? sectionInfo.completedAt : null,
+        classImage: dayImg ? dayImg.classImage : '',
+        attendanceSheetImage: dayImg ? dayImg.attendanceSheetImage : '',
+        students,
+        presentCount: students.filter(s => s.status === 'present').length,
+        absentCount: students.filter(s => s.status === 'absent').length,
+        totalStudents: students.length,
+        avgRating: parseFloat(avgRating),
+        totalRatings: dayRats.length,
+        ratingDistribution,
+        ratingComments
+      });
+    }
+
+    res.json({
+      courseId: course._id,
+      title: course.title,
+      description: course.description || '',
+      courseCode: course.courseCode || '',
+      teacher: course.teacher ? {
+        name: course.teacher.name,
+        email: course.teacher.email,
+        department: course.teacher.department || ''
+      } : null,
+      totalDays: course.totalDays,
+      totalStudents: enrollments.length,
+      startDate: course.startDate,
+      endDate: course.endDate,
+      status: course.status,
+      daysData
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 module.exports = router;
